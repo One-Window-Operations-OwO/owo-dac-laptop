@@ -568,6 +568,50 @@ export default function Home() {
       setIsSubmitting(false);
     }
   };
+
+  // Effect untuk mengecek Double Data (NPSN Ganda)
+  useEffect(() => {
+    const checkDoubleData = async () => {
+      // Pastikan parsedData sudah ada dan memiliki NPSN
+      if (!parsedData?.school?.npsn) return;
+
+      const currentSessionId = localStorage.getItem("dac_session");
+      if (!currentSessionId) return;
+
+      try {
+        const res = await fetch("/api/check-double-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            term: parsedData.school.npsn, // Mengirim NPSN sebagai term
+            session_id: currentSessionId,
+          }),
+        });
+
+        const json = await res.json();
+
+        if (json.success && Array.isArray(json.data)) {
+          // Jika data yang dikembalikan lebih dari 1, tampilkan alert
+          if (json.data.length > 1) {
+            const snList = json.data
+              .map((d: any) => d.serial_number)
+              .join(", ");
+
+            alert(
+              `⚠️ PERINGATAN: Terdeteksi ${json.data.length} data untuk NPSN: ${parsedData.school.npsn}.\n\n` +
+                `Daftar SN yang terdaftar:\n${snList}\n\n` +
+                `Harap teliti kembali sebelum melakukan approval.`
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Gagal mengecek double data:", err);
+      }
+    };
+
+    checkDoubleData();
+  }, [parsedData?.school?.npsn]); // Hanya berjalan ketika NPSN pada parsedData berubah
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (currentImageIndex === null || !parsedData) return;

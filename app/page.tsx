@@ -797,6 +797,10 @@ export default function Home() {
           setCustomReason={setCustomReason}
           sidebarOptions={sidebarOptions}
           currentImageIndex={currentImageIndex}
+          date={verificationDate}
+          setDate={setVerificationDate}
+          snBapp={snBapp}
+          setSnBapp={setSnBapp}
         />
       </div>
 
@@ -904,6 +908,9 @@ export default function Home() {
             setDate={setVerificationDate}
             snBapp={snBapp}
             setSnBapp={setSnBapp}
+            // Hide inputs in sticky box if they are shown in sidebar
+            hideDate={currentImageIndex === 4}
+            hideSn={currentImageIndex === 3}
           />
 
           <div

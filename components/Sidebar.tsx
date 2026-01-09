@@ -152,8 +152,18 @@ export default function Sidebar({
   customReason,
   setCustomReason,
   sidebarOptions,
-  currentImageIndex, // New Prop
-}: SidebarProps & { currentImageIndex: number | null }) {
+  currentImageIndex,
+  date,
+  setDate,
+  snBapp,
+  setSnBapp
+}: SidebarProps & {
+  currentImageIndex: number | null;
+  date?: string;
+  setDate?: (date: string) => void;
+  snBapp?: string;
+  setSnBapp?: (val: string) => void;
+}) {
   // Define Mapping here or outside component
   const IMAGE_FIELD_MAPPING: Record<number, string[]> = {
     0: ["G", "H", "I"],
@@ -242,6 +252,51 @@ export default function Sidebar({
           >
             Default
           </button>
+        </div>
+      )}
+
+      {/* Date Input - Special Condition: Image Index 4 & Filtered Mode */}
+      {currentImageIndex === 4 && filterMode === 'specific' && date && setDate && (
+        <div className="mb-4 bg-gray-700 p-2 rounded border border-gray-600">
+          <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block mb-1">
+            Tanggal Verifikasi
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            // Wheel handler logic inline or separate helper
+            onWheel={(e) => {
+              if (!date) return;
+              const currentDate = new Date(date);
+              const daysToAdd = e.deltaY > 0 ? -1 : 1;
+              currentDate.setDate(currentDate.getDate() + daysToAdd);
+              const year = currentDate.getFullYear();
+              const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+              const day = String(currentDate.getDate()).padStart(2, "0");
+              setDate(`${year}-${month}-${day}`);
+            }}
+            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white focus:outline-none focus:border-blue-500 text-sm"
+          />
+        </div>
+      )}
+
+      {/* SN BAPP Input - Special Condition: Image Index 3 & Filtered Mode */}
+      {currentImageIndex === 3 && filterMode === 'specific' && snBapp !== undefined && setSnBapp && (
+        <div className={`mb-4 bg-gray-700 p-2 rounded border border-gray-600 ${
+          // Tampilkan jika value BUKAN "Ada" dan BUKAN "Sesuai"
+          (evaluationForm['O'] !== "Ada" && evaluationForm['O'] !== "Sesuai") ? 'block' : 'hidden'
+          }`}>
+          <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block mb-1">
+            Input SN BAPP
+          </label>
+          <input
+            type="text"
+            value={snBapp}
+            onChange={(e) => setSnBapp(e.target.value)}
+            placeholder="Input SN if mismatch"
+            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white focus:outline-none focus:border-blue-500 text-sm font-mono placeholder-gray-500"
+          />
         </div>
       )}
 

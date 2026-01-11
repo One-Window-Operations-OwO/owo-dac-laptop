@@ -783,32 +783,11 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full bg-zinc-50 dark:bg-black overflow-hidden relative">
-      {/* Sidebar */}
-      <div className="flex-shrink-0 h-full">
-        <Sidebar
-          pendingCount={sheetData.length - currentTaskIndex}
-          handleTerima={handleTerima}
-          handleTolak={handleTolak}
-          handleSkip={handleSkip}
-          isSubmitting={isSubmitting}
-          evaluationForm={evaluationForm}
-          setEvaluationForm={setEvaluationForm}
-          customReason={customReason}
-          setCustomReason={setCustomReason}
-          sidebarOptions={sidebarOptions}
-          currentImageIndex={currentImageIndex}
-          date={verificationDate}
-          setDate={setVerificationDate}
-          snBapp={snBapp}
-          setSnBapp={setSnBapp}
-        />
-      </div>
-
       {/* Main Content */}
-      <div className="flex-1 h-full overflow-hidden relative p-4 md:p-6 bg-zinc-50/50 dark:bg-zinc-900/50">
-        <div className="h-full overflow-y-auto p-4 md:p-6">
+      <div className="flex-1 h-full overflow-hidden relative bg-zinc-50/50 dark:bg-zinc-900/50">
+        <div className="h-full overflow-y-auto p-4 md:p-6 custom-scrollbar">
           {parsedData && !detailLoading ? (
-            <div className="max-w-5xl mx-auto flex flex-col gap-6 pb-20">
+            <div className="max-w-5xl mx-auto flex flex-col gap-6">
               {/* Header Info Parsed */}
               <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5">
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b dark:border-zinc-700 pb-2">
@@ -898,6 +877,27 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Sidebar */}
+      <div className="flex-shrink-0 h-full">
+        <Sidebar
+          pendingCount={sheetData.length - currentTaskIndex}
+          handleTerima={handleTerima}
+          handleTolak={handleTolak}
+          handleSkip={handleSkip}
+          isSubmitting={isSubmitting}
+          evaluationForm={evaluationForm}
+          setEvaluationForm={setEvaluationForm}
+          customReason={customReason}
+          setCustomReason={setCustomReason}
+          sidebarOptions={sidebarOptions}
+          currentImageIndex={currentImageIndex}
+          date={verificationDate}
+          setDate={setVerificationDate}
+          snBapp={snBapp}
+          setSnBapp={setSnBapp}
+        />
+      </div>
+
       {/* Layout for Image Viewer Modal */}
       {currentImageIndex !== null && parsedData && (
         <div>
@@ -907,7 +907,7 @@ export default function Home() {
           />
 
           <div
-            className="absolute left-96 top-0 right-0 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm"
+            className="absolute left-0 top-0 right-96 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm"
             onClick={() => setCurrentImageIndex(null)}
           >
             {/* Sticky Info */}

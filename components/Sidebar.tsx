@@ -256,7 +256,7 @@ export default function Sidebar({
       )}
 
       {/* Date Input - Special Condition: Image Index 4 & Filtered Mode */}
-      {currentImageIndex === 4 && filterMode === 'specific' && date && setDate && (
+      {currentImageIndex === 4 && filterMode === 'specific' && date !== undefined && setDate && (
         <div className="mb-4 bg-gray-700 p-2 rounded border border-gray-600">
           <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block mb-1">
             Tanggal Verifikasi

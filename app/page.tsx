@@ -43,6 +43,21 @@ export default function Home() {
   const [customReason, setCustomReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [snBapp, setSnBapp] = useState("");
+
+  // Sidebar Layout State
+  const [sidebarPosition, setSidebarPosition] = useState<"left" | "right">("left");
+
+  useEffect(() => {
+    const storedPos = localStorage.getItem("sidebar_layout");
+    if (storedPos === "left" || storedPos === "right") {
+      setSidebarPosition(storedPos);
+    }
+  }, []);
+
+  const handleSetSidebarPosition = (pos: "left" | "right") => {
+    setSidebarPosition(pos);
+    localStorage.setItem("sidebar_layout", pos);
+  };
   const [id, setId] = useState("");
 
   // Image Viewer State
@@ -784,7 +799,7 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full bg-zinc-50 dark:bg-black overflow-hidden relative">
       {/* Main Content */}
-      <div className="flex-1 h-full overflow-hidden relative bg-zinc-50/50 dark:bg-zinc-900/50">
+      <div className={`flex-1 h-full overflow-hidden relative bg-zinc-50/50 dark:bg-zinc-900/50 ${sidebarPosition === "left" ? "order-2" : "order-1"}`}>
         <div className="h-full overflow-y-auto p-4 md:p-6 custom-scrollbar">
           {parsedData && !detailLoading ? (
             <div className="max-w-5xl mx-auto flex flex-col gap-6">
@@ -878,7 +893,7 @@ export default function Home() {
       </div>
 
       {/* Sidebar */}
-      <div className="flex-shrink-0 h-full">
+      <div className={`flex-shrink-0 h-full ${sidebarPosition === "left" ? "order-1 border-r border-zinc-700" : "order-2 border-l border-zinc-700"}`}>
         <Sidebar
           pendingCount={sheetData.length - currentTaskIndex}
           handleTerima={handleTerima}
@@ -895,6 +910,8 @@ export default function Home() {
           setDate={setVerificationDate}
           snBapp={snBapp}
           setSnBapp={setSnBapp}
+          position={sidebarPosition}
+          setPosition={handleSetSidebarPosition}
         />
       </div>
 
@@ -907,7 +924,10 @@ export default function Home() {
           />
 
           <div
-            className="absolute left-0 top-0 right-96 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm"
+            className={`absolute top-0 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm transition-all duration-300 ${sidebarPosition === "left"
+              ? "left-96 right-0"
+              : "left-0 right-96"
+              }`}
             onClick={() => setCurrentImageIndex(null)}
           >
             {/* Sticky Info */}

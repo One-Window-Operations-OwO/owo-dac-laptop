@@ -125,6 +125,8 @@ interface SidebarProps {
   customReason: string;
   setCustomReason: (val: string) => void;
   sidebarOptions: EvaluationField[];
+  position: "left" | "right";
+  setPosition: (pos: "left" | "right") => void;
 }
 
 export const defaultEvaluationValues: Record<string, string> = {
@@ -156,7 +158,9 @@ export default function Sidebar({
   date,
   setDate,
   snBapp,
-  setSnBapp
+  setSnBapp,
+  position,
+  setPosition,
 }: SidebarProps & {
   currentImageIndex: number | null;
   date?: string;
@@ -231,9 +235,36 @@ export default function Sidebar({
 
   return (
     <aside className="w-96 bg-gray-800 text-white flex-shrink-0 flex flex-col p-4 h-full overflow-hidden border-r border-gray-700">
-      <h1 className="text-xl font-bold border-b border-gray-700 pb-4 flex-shrink-0">
-        FORM EVALUASI
-      </h1>
+      <div className="flex justify-between items-center border-b border-gray-700 pb-4 flex-shrink-0">
+        <h1 className="text-xl font-bold">
+          FORM EVALUASI
+        </h1>
+        {/* Layout Toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-900 p-0.5 rounded-full border border-gray-600">
+            <button
+              onClick={() => setPosition("left")}
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${position === "left"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-300"
+                }`}
+              title="Left Layout"
+            >
+              L
+            </button>
+            <button
+              onClick={() => setPosition("right")}
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${position === "right"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-300"
+                }`}
+              title="Right Layout"
+            >
+              R
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Mode Switcher when Image Open */}
       {currentImageIndex !== null && (

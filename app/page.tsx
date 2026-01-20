@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, act } from "react";
 import Login from "@/components/Login";
 import Sidebar, {
   defaultEvaluationValues,
@@ -39,7 +39,7 @@ export default function Home() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [parsedData, setParsedData] = useState<ExtractedData | null>(null);
   const [currentExtractedId, setCurrentExtractedId] = useState<string | null>(
-    null
+    null,
   );
   const [rawDataHtml, setRawDataHtml] = useState<string>("");
 
@@ -52,7 +52,7 @@ export default function Home() {
 
   // Sidebar Layout State
   const [sidebarPosition, setSidebarPosition] = useState<"left" | "right">(
-    "left"
+    "left",
   );
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [manualNote, setManualNote] = useState("");
@@ -74,13 +74,13 @@ export default function Home() {
 
   // Image Viewer State
   const [currentImageIndex, setCurrentImageIndex] = useState<number | null>(
-    null
+    null,
   );
   const [imageRotation, setImageRotation] = useState(0);
 
   // Verification Date
   const [verificationDate, setVerificationDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export default function Home() {
     Promise.all([refreshSession("dac"), refreshSession("datasource")]).finally(
       () => {
         setIsLoading(false);
-      }
+      },
     );
   }, []);
 
@@ -207,7 +207,8 @@ export default function Home() {
           // Let's keep original order for now unless specified
           return 0;
         });
-        setSheetData(sorted); // Reverse to have oldest first
+        // setSheetData(sorted.reverse().slice(1,21)); // Reverse to have oldest first
+        setSheetData(sorted); 
         setCurrentTaskIndex(0);
       } else {
         console.error("Failed to fetch scraped data:", json.message);
@@ -273,7 +274,7 @@ export default function Home() {
     const getValueByLabel = (labelText: string): string => {
       const labels = Array.from(doc.querySelectorAll("label"));
       const targetLabel = labels.find((l) =>
-        l.textContent?.trim().includes(labelText)
+        l.textContent?.trim().includes(labelText),
       );
       if (targetLabel && targetLabel.parentElement) {
         const input =
@@ -334,7 +335,11 @@ export default function Home() {
     if (logContainer) {
       // Berdasarkan struktur HTML admin dashboard biasanya (border rounded p-3 mb-2)
       const logEntries = logContainer.querySelectorAll(".border.rounded");
+
       logEntries.forEach((entry) => {
+        const noteElement = entry.querySelector(".mt-2.small"); // Ini adalah div yang berisi tulisan "Catatan:"
+        const actualNoteText =
+          noteElement?.nextElementSibling?.textContent?.trim() || "-";
         logs.push({
           date: entry.querySelector(".text-muted")?.textContent?.trim() || "",
           status: entry.querySelector(".fw-bold")?.textContent?.trim() || "",
@@ -343,11 +348,7 @@ export default function Home() {
               .querySelector(".fw-semibold")
               ?.textContent?.replace("User:", "")
               .trim() || "",
-          note:
-            entry
-              .querySelector(".fst-italic")
-              ?.textContent?.replace("Catatan:", "")
-              .trim() || "-",
+          note: actualNoteText || " - ",
         });
       });
     }
@@ -561,7 +562,7 @@ export default function Home() {
 
             // Strategy 1: Look for textarea with name="description" (Most likely location based on provided HTML)
             const descInput = doc.querySelector(
-              'textarea[name="description"]'
+              'textarea[name="description"]',
             ) as HTMLTextAreaElement;
             if (descInput) {
               finalNote = descInput.value || descInput.textContent || "";
@@ -569,10 +570,10 @@ export default function Home() {
 
             // Strategy 2
             const alerts = Array.from(
-              doc.querySelectorAll(".alert.alert-danger")
+              doc.querySelectorAll(".alert.alert-danger"),
             );
             const isPihakPertamaError = alerts.some((alert) =>
-              /Pihak pertama/i.test(alert.textContent || "")
+              /Pihak pertama/i.test(alert.textContent || ""),
             );
 
             if (isPihakPertamaError) {
@@ -592,7 +593,7 @@ export default function Home() {
               "Parsed Rejection Note:",
               finalNote,
               "and status",
-              finalNote.length > 0 ? "Rejected" : "Approved"
+              finalNote.length > 0 ? "Rejected" : "Approved",
             );
           }
         } catch (err) {
@@ -639,7 +640,7 @@ export default function Home() {
             }
           } catch (ignore) {
             console.warn(
-              "Failed to auto-refresh DAC session before save, trying with existing one"
+              "Failed to auto-refresh DAC session before save, trying with existing one",
             );
           }
         }
@@ -737,8 +738,8 @@ export default function Home() {
 
             alert(
               `⚠️ PERINGATAN: Terdeteksi ${json.data.length} data untuk NPSN: ${parsedData.school.npsn}.\n\n` +
-              `Daftar SN yang terdaftar:\n${snList}\n\n` +
-              `Harap teliti kembali sebelum melakukan approval.`
+                `Daftar SN yang terdaftar:\n${snList}\n\n` +
+                `Harap teliti kembali sebelum melakukan approval.`,
             );
           }
         }
@@ -799,7 +800,7 @@ export default function Home() {
   const prevImage = () => {
     if (parsedData) {
       setCurrentImageIndex(
-        (p) => (p! - 1 + parsedData.images.length) % parsedData.images.length
+        (p) => (p! - 1 + parsedData.images.length) % parsedData.images.length,
       );
       setImageRotation(0); // Reset rotasi saat pindah gambar
     }
@@ -865,8 +866,9 @@ export default function Home() {
     <div className="flex h-screen w-full bg-zinc-50 dark:bg-black overflow-hidden relative">
       {/* Main Content */}
       <div
-        className={`flex-1 h-full overflow-hidden relative bg-zinc-50/50 dark:bg-zinc-900/50 ${sidebarPosition === "left" ? "order-2" : "order-1"
-          }`}
+        className={`flex-1 h-full overflow-hidden relative bg-zinc-50/50 dark:bg-zinc-900/50 ${
+          sidebarPosition === "left" ? "order-2" : "order-1"
+        }`}
       >
         <div className="h-full overflow-y-auto p-4 md:p-6 custom-scrollbar">
           {parsedData && !detailLoading ? (
@@ -929,22 +931,24 @@ export default function Home() {
                     {parsedData.history.map((log, idx) => (
                       <div
                         key={idx}
-                        className={`border dark:border-zinc-700 rounded-lg p-4 dark:bg-zinc-900/30 ${log.status.toLowerCase().includes("setuju") ||
-                            log.status.toLowerCase().includes("terima")
+                        className={`border dark:border-zinc-700 rounded-lg p-4 dark:bg-zinc-900/30 ${
+                          log.status.toLowerCase().includes("setuju") ||
+                          log.status.toLowerCase().includes("terima")
                             ? "bg-green-100"
                             : "bg-red-100"
-                          }`}
+                        }`}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs text-zinc-500 font-mono">
                             {log.date}
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${log.status.toLowerCase().includes("setuju") ||
-                                log.status.toLowerCase().includes("terima")
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              log.status.toLowerCase().includes("setuju") ||
+                              log.status.toLowerCase().includes("terima")
                                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              }`}
+                            }`}
                           >
                             {log.status}
                           </span>
@@ -1013,10 +1017,11 @@ export default function Home() {
 
       {/* Sidebar */}
       <div
-        className={`flex-shrink-0 h-full ${sidebarPosition === "left"
+        className={`flex-shrink-0 h-full ${
+          sidebarPosition === "left"
             ? "order-1 border-r border-zinc-700"
             : "order-2 border-l border-zinc-700"
-          }`}
+        }`}
       >
         <Sidebar
           pendingCount={sheetData.length - currentTaskIndex}
@@ -1051,8 +1056,9 @@ export default function Home() {
           />
 
           <div
-            className={`absolute top-0 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm transition-all duration-300 ${sidebarPosition === "left" ? "left-96 right-0" : "left-0 right-96"
-              }`}
+            className={`absolute top-0 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm transition-all duration-300 ${
+              sidebarPosition === "left" ? "left-96 right-0" : "left-0 right-96"
+            }`}
             onClick={() => setCurrentImageIndex(null)}
           >
             {/* Sticky Info */}
@@ -1117,7 +1123,7 @@ export default function Home() {
                 e.stopPropagation();
                 setCurrentImageIndex(
                   (currentImageIndex - 1 + parsedData.images.length) %
-                  parsedData.images.length
+                    parsedData.images.length,
                 );
               }}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl transition-colors p-4"
@@ -1128,7 +1134,7 @@ export default function Home() {
               onClick={(e) => {
                 e.stopPropagation();
                 setCurrentImageIndex(
-                  (currentImageIndex + 1) % parsedData.images.length
+                  (currentImageIndex + 1) % parsedData.images.length,
                 );
               }}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl transition-colors p-4"
@@ -1152,10 +1158,11 @@ export default function Home() {
                 Edit Catatan Approval DAC
               </h3>
               <span
-                className={`px-2 py-1 rounded text-[10px] font-bold ${pendingApprovalData?.status === 2
+                className={`px-2 py-1 rounded text-[10px] font-bold ${
+                  pendingApprovalData?.status === 2
                     ? "bg-green-900 text-green-400"
                     : "bg-red-900 text-red-400"
-                  }`}
+                }`}
               >
                 {pendingApprovalData?.status === 2 ? "APPROVE" : "REJECT"}
               </span>

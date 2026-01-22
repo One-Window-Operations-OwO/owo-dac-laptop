@@ -202,7 +202,7 @@ export default function Home() {
       const json = await res.json();
       if (json.success) {
         // Sort by Date (optional) or just use as is
-        const filtered = json.data.filter((item: any) => item.type === "DAC");
+        const filtered = json.data.filter((item: any) => item.type === "DAC" && item.status === "PROSES");
         if (typeof window !== "undefined" && window.location.search.includes("reverse=true")) {
           filtered.reverse();
         }

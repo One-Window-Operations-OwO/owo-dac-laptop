@@ -1,0 +1,120 @@
+
+export interface EvaluationField {
+    id: string;
+    label: string;
+    name: string;
+    options: string[];
+}
+
+export interface ApprovalLog {
+    date: string;
+    status: string;
+    user: string;
+    note: string;
+}
+
+export interface ExtractedData {
+    school: Record<string, string>;
+    item: Record<string, string>;
+    images: Array<{ src: string; title: string }>;
+    history: ApprovalLog[];
+    extractedId: string;
+    resi: string;
+}
+
+// Helper to parse HTML
+export const parseHtmlData = (html: string, initialExtractedId: string): ExtractedData => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    // Helper to get input value by label
+    const getValueByLabel = (labelText: string): string => {
+        const labels = Array.from(doc.querySelectorAll("label"));
+        const targetLabel = labels.find((l) =>
+            l.textContent?.trim().includes(labelText),
+        );
+        if (targetLabel && targetLabel.parentElement) {
+            const input =
+                targetLabel.parentElement.querySelector("input, textarea");
+            if (input) {
+                return (
+                    (input as HTMLInputElement).value ||
+                    input.getAttribute("value") ||
+                    ""
+                );
+            }
+        }
+        return "";
+    };
+
+    const school: Record<string, string> = {
+        npsn: getValueByLabel("NPSN"),
+        nama_sekolah: getValueByLabel("Nama Sekolah"),
+        alamat: getValueByLabel("Alamat"),
+        kecamatan: getValueByLabel("Kecamatan"),
+        kabupaten: getValueByLabel("Kabupaten"),
+        provinsi: getValueByLabel("Provinsi"),
+        pic: "N/A",
+    };
+
+    const item: Record<string, string> = {
+        serial_number: getValueByLabel("Serial Number"),
+        nama_barang: getValueByLabel("Nama Barang"),
+    };
+
+    let resi = getValueByLabel("No. Resi");
+    if (!resi) resi = getValueByLabel("No Resi");
+    if (!resi) {
+        const bodyText = doc.body.textContent || "";
+        const resiMatch = bodyText.match(/No\.?\s*Resi\s*[:\n]?\s*([A-Z0-9]+)/i);
+        if (resiMatch) resi = resiMatch[1];
+    }
+
+    const approvalBtn = doc.querySelector('button[onclick*="approvalFunc"]');
+    const htmlId = approvalBtn?.getAttribute("data-id");
+
+    const imgs: Array<{ src: string; title: string }> = [];
+    const imageCards = doc.querySelectorAll(".card .card-body .col-6");
+    imageCards.forEach((card) => {
+        const header = card.querySelector(".card-header");
+        const img = card.querySelector("img");
+        if (img) {
+            imgs.push({
+                title: header?.textContent?.trim() || "Dokumentasi",
+                src: img.getAttribute("src") || "",
+            });
+        }
+    });
+
+    const logs: ApprovalLog[] = [];
+    const logContainer = doc.querySelector("#logApproval .accordion-body");
+
+    if (logContainer) {
+        const logEntries = logContainer.querySelectorAll(".border.rounded");
+
+        logEntries.forEach((entry) => {
+            const noteElement = entry.querySelector(".mt-2.small");
+            const actualNoteText =
+                noteElement?.nextElementSibling?.textContent?.trim() || "-";
+            logs.push({
+                date: entry.querySelector(".text-muted")?.textContent?.trim() || "",
+                status: entry.querySelector(".fw-bold")?.textContent?.trim() || "",
+                user:
+                    entry
+                        .querySelector(".fw-semibold")
+                        ?.textContent?.replace("User:", "")
+                        .trim() || "",
+                note: actualNoteText || " - ",
+            });
+        });
+    }
+
+    return {
+        school,
+        item,
+        images: imgs,
+        history: logs,
+        extractedId: htmlId || initialExtractedId,
+        resi: resi || "-",
+    };
+};

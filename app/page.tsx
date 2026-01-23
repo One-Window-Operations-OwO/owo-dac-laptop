@@ -4,26 +4,10 @@ import { useEffect, useState, useRef, act } from "react";
 import Login from "@/components/Login";
 import Sidebar, {
   defaultEvaluationValues,
-  EvaluationField,
 } from "@/components/Sidebar";
+import { parseHtmlData, ExtractedData, EvaluationField } from "@/components/HtmlParser";
 import StickyInfoBox from "@/components/StickyInfoBox";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-
-interface ApprovalLog {
-  date: string;
-  status: string;
-  user: string;
-  note: string;
-}
-// Helper Interface
-interface ExtractedData {
-  school: Record<string, string>;
-  item: Record<string, string>;
-  images: Array<{ src: string; title: string }>;
-  history: ApprovalLog[]; // Simple array of strings for history
-  extractedId: string;
-  resi: string;
-}
 
 export default function Home() {
   const [dacAuthenticated, setDacAuthenticated] = useState(false);
@@ -38,6 +22,9 @@ export default function Home() {
   const [selectedSn, setSelectedSn] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [parsedData, setParsedData] = useState<ExtractedData | null>(null);
+  const [prefetchedData, setPrefetchedData] = useState<ExtractedData | null>(null); // New Prefetch State
+  const [isTransientDisabled, setIsTransientDisabled] = useState(false); // New Debounce State
+
   const [currentExtractedId, setCurrentExtractedId] = useState<string | null>(
     null,
   );
@@ -172,12 +159,38 @@ export default function Home() {
     }
   }, [sheetData, currentTaskIndex, sidebarOptions.length]); // added dependency
 
-  // Parse HTML Effect
+  // Parse HTML Effect REMOVED - Direct handling now
+  // useEffect(() => {
+  //   if (rawDataHtml && currentExtractedId) {
+  //     parseHtml(rawDataHtml, currentExtractedId);
+  //   }
+  // }, [rawDataHtml, currentExtractedId]);
+
+  // Prefetch Effect
   useEffect(() => {
-    if (rawDataHtml && currentExtractedId) {
-      parseHtml(rawDataHtml, currentExtractedId);
-    }
-  }, [rawDataHtml, currentExtractedId]);
+    const prefetchNext = async () => {
+      if (sheetData.length > 0 && currentTaskIndex + 1 < sheetData.length) {
+        const nextItem = sheetData[currentTaskIndex + 1];
+        // Avoid re-fetching if we already have it
+        if (prefetchedData && prefetchedData.item.serial_number === nextItem.serial_number) return;
+
+        console.log("Prefetching next item:", nextItem.serial_number);
+        try {
+          const session = localStorage.getItem("dac_session") || "";
+          const result = await fetchItemFromApi(nextItem, session);
+          if (result) {
+            setPrefetchedData(result);
+          }
+        } catch (e) {
+          console.warn("Prefetch failed", e);
+        }
+      }
+    };
+
+    // Delay prefetch slightly to prioritize current render
+    const timer = setTimeout(prefetchNext, 1000);
+    return () => clearTimeout(timer);
+  }, [currentTaskIndex, sheetData, prefetchedData]);
 
   // Debug: Log ID when it changes
   useEffect(() => {
@@ -220,21 +233,8 @@ export default function Home() {
     }
   };
 
-  const handleSelectItem = async (item: any) => {
-    setSelectedSn(item.serial_number);
-    setDetailLoading(true);
-    setRawDataHtml("");
-    setParsedData(null);
-    setCurrentExtractedId(null);
-    setSnBapp(item.serial_number || "");
-
-    let currentSessionId = localStorage.getItem("dac_session");
-
+  const fetchItemFromApi = async (item: any, currentSessionId: string): Promise<ExtractedData | null> => {
     try {
-      // If we already have action_id from scrape, we can try to skip check-approval's ID finding
-      // But check-approval might be needed for session freshness or side effects.
-      // Let's call check-approval as requested.
-
       const checkRes = await fetch("/api/check-approval", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,7 +249,6 @@ export default function Home() {
       const targetId = checkJson.extractedId;
 
       if (targetId) {
-        setCurrentExtractedId(targetId);
         const detailRes = await fetch("/api/get-detail", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -257,9 +256,51 @@ export default function Home() {
         });
         const detailJson = await detailRes.json();
 
-        if (detailJson.html) setRawDataHtml(detailJson.html);
+        if (detailJson.html) {
+          return parseHtmlData(detailJson.html, targetId);
+        }
       } else {
         console.log("No extracted ID found for this item");
+      }
+    } catch (err) {
+      console.error("Fetch Item Error", err);
+    }
+    return null;
+  }
+
+  const handleSelectItem = async (item: any) => {
+    // Debounce UI
+    setIsTransientDisabled(true);
+    setTimeout(() => setIsTransientDisabled(false), 800); // 800ms safety lock
+
+    setSelectedSn(item.serial_number);
+    setDetailLoading(true);
+    setRawDataHtml("");
+    // setParsedData(null); // Don't clear immediately if we can help it, but for cleanliness maybe yes?
+    // actually lets try to keep old data visible or show loading? 
+    // Existing behavior was clear triggers loading spinner.
+
+    // Check Prefetch
+    if (prefetchedData && prefetchedData.item.serial_number === item.serial_number) {
+      console.log("Using Prefetched Data!");
+      setParsedData(prefetchedData);
+      setDetailLoading(false);
+      setSnBapp(item.serial_number || "");
+      setPrefetchedData(null); // Consume it
+      return;
+    }
+
+    setParsedData(null);
+    setCurrentExtractedId(null);
+    setSnBapp(item.serial_number || "");
+
+    let currentSessionId = localStorage.getItem("dac_session") || "";
+
+    try {
+      const data = await fetchItemFromApi(item, currentSessionId);
+      if (data) {
+        setCurrentExtractedId(data.extractedId);
+        setParsedData(data);
       }
     } catch (err) {
       console.error(err);
@@ -268,101 +309,21 @@ export default function Home() {
     }
   };
 
-  const parseHtml = (html: string, initialExtractedId: string) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-
-    // Helper to get input value by label
-    const getValueByLabel = (labelText: string): string => {
-      const labels = Array.from(doc.querySelectorAll("label"));
-      const targetLabel = labels.find((l) =>
-        l.textContent?.trim().includes(labelText),
-      );
-      if (targetLabel && targetLabel.parentElement) {
-        const input =
-          targetLabel.parentElement.querySelector("input, textarea");
-        if (input) {
-          return (
-            (input as HTMLInputElement).value ||
-            input.getAttribute("value") ||
-            ""
-          );
+  // parseHtml removed - using import
+  const handleRefetch = async () => {
+    if (sheetData.length > 0 && sheetData[currentTaskIndex]) {
+      const item = sheetData[currentTaskIndex];
+      setDetailLoading(true);
+      try {
+        const session = localStorage.getItem("dac_session") || "";
+        const data = await fetchItemFromApi(item, session);
+        if (data) {
+          setParsedData(data);
         }
+      } finally {
+        setDetailLoading(false);
       }
-      return "";
-    };
-
-    const school: Record<string, string> = {
-      npsn: getValueByLabel("NPSN"),
-      nama_sekolah: getValueByLabel("Nama Sekolah"),
-      alamat: getValueByLabel("Alamat"),
-      kecamatan: getValueByLabel("Kecamatan"),
-      kabupaten: getValueByLabel("Kabupaten"),
-      provinsi: getValueByLabel("Provinsi"),
-      pic: "N/A",
-    };
-
-    const item: Record<string, string> = {
-      serial_number: getValueByLabel("Serial Number"),
-      nama_barang: getValueByLabel("Nama Barang"),
-    };
-
-    let resi = getValueByLabel("No. Resi");
-    if (!resi) resi = getValueByLabel("No Resi");
-    if (!resi) {
-      const bodyText = doc.body.textContent || "";
-      const resiMatch = bodyText.match(/No\.?\s*Resi\s*[:\n]?\s*([A-Z0-9]+)/i);
-      if (resiMatch) resi = resiMatch[1];
     }
-
-    const approvalBtn = doc.querySelector('button[onclick*="approvalFunc"]');
-    const htmlId = approvalBtn?.getAttribute("data-id");
-
-    const imgs: Array<{ src: string; title: string }> = [];
-    const imageCards = doc.querySelectorAll(".card .card-body .col-6");
-    imageCards.forEach((card) => {
-      const header = card.querySelector(".card-header");
-      const img = card.querySelector("img");
-      if (img) {
-        imgs.push({
-          title: header?.textContent?.trim() || "Dokumentasi",
-          src: img.getAttribute("src") || "",
-        });
-      }
-    });
-    // Ekstraksi Log Approval
-    const logs: ApprovalLog[] = [];
-    const logContainer = doc.querySelector("#logApproval .accordion-body");
-
-    if (logContainer) {
-      // Berdasarkan struktur HTML admin dashboard biasanya (border rounded p-3 mb-2)
-      const logEntries = logContainer.querySelectorAll(".border.rounded");
-
-      logEntries.forEach((entry) => {
-        const noteElement = entry.querySelector(".mt-2.small"); // Ini adalah div yang berisi tulisan "Catatan:"
-        const actualNoteText =
-          noteElement?.nextElementSibling?.textContent?.trim() || "-";
-        logs.push({
-          date: entry.querySelector(".text-muted")?.textContent?.trim() || "",
-          status: entry.querySelector(".fw-bold")?.textContent?.trim() || "",
-          user:
-            entry
-              .querySelector(".fw-semibold")
-              ?.textContent?.replace("User:", "")
-              .trim() || "",
-          note: actualNoteText || " - ",
-        });
-      });
-    }
-
-    setParsedData({
-      school,
-      item,
-      images: imgs,
-      history: logs,
-      extractedId: htmlId || initialExtractedId,
-      resi: resi || "-",
-    });
   };
 
   const fetchSidebarOptions = async () => {
@@ -495,41 +456,58 @@ export default function Home() {
 
     const currentItem = sheetData[currentTaskIndex];
 
+    // CAPTURE STATE SNAPSHOTS
+    const capturedForm = { ...evaluationForm }; // Copy object
+    const capturedSnBapp = snBapp;
+    const capturedDate = verificationDate;
+    const capturedId = id;
+    const capturedItem = { ...currentItem };
+    const capturedParsedData = { ...parsedData }; // Risky if deep object but mostly primitives and arrays. 
+    // parsedData has arrays inside (images, history), checking if we need deep clone.
+    // We only access properties, so shallow copy of parsedData is fine as long as we don't mutate.
+
+    // OPTIMISTIC UPDATE CHECK
+    // Only optimistic if we don't need manual intervention (Modal)
+    const isOptimistic = !enableManualNote;
+
     setIsSubmitting(true);
+
+    if (isOptimistic) {
+      // Optimistically move to next item
+      handleSkip(false);
+    }
 
     try {
       // sn_bapp Logic:
       // "BARCODE SN BAPP" is field 'O'. Check the value.
       // If "Ada" (or "Sesuai" depending on exact option value), use system SN.
       // Otherwise use manual input.
-      const barcodeSnStatus = evaluationForm["O"];
-      // Check options based on Sidebar.tsx errorMap or standard expectation
-      // If 'Ada' or 'Sesuai', copy from sheetData/parsedData
-      let finalSnBapp = snBapp;
+      const barcodeSnStatus = capturedForm["O"];
+      let finalSnBapp = capturedSnBapp;
       if (barcodeSnStatus === "Ada" || barcodeSnStatus === "Sesuai") {
-        finalSnBapp = currentItem.serial_number;
+        finalSnBapp = capturedItem.serial_number;
       }
 
       const payload: Record<string, string> = {
-        id_user: id,
-        npsn: currentItem.npsn, // Use scrape data preferably
-        sn_penyedia: currentItem.serial_number,
-        cek_sn_penyedia: currentItem.cek_sn_penyedia,
-        id_update: currentItem.action_id, // action_id is id_update
-        no_bapp: currentItem.bapp, // bapp from scrape is no_bapp
-        ket_tgl_bapp: evaluationForm["F"],
-        tgl_bapp: verificationDate,
+        id_user: capturedId,
+        npsn: capturedItem.npsn, // Use scrape data preferably
+        sn_penyedia: capturedItem.serial_number,
+        cek_sn_penyedia: capturedItem.cek_sn_penyedia,
+        id_update: capturedItem.action_id, // action_id is id_update
+        no_bapp: capturedItem.bapp, // bapp from scrape is no_bapp
+        ket_tgl_bapp: capturedForm["F"],
+        tgl_bapp: capturedDate,
         sn_bapp: finalSnBapp,
-        geo_tag: evaluationForm["G"],
-        f_papan_identitas: evaluationForm["H"],
-        f_box_pic: evaluationForm["I"],
-        f_unit: evaluationForm["J"],
-        spesifikasi_dxdiag: evaluationForm["K"],
-        bc_bapp_sn: evaluationForm["O"],
-        bapp_hal1: evaluationForm["Q"],
-        bapp_hal2: evaluationForm["R"],
-        nm_ttd_bapp: evaluationForm["S"],
-        stempel: evaluationForm["T"],
+        geo_tag: capturedForm["G"],
+        f_papan_identitas: capturedForm["H"],
+        f_box_pic: capturedForm["I"],
+        f_unit: capturedForm["J"],
+        spesifikasi_dxdiag: capturedForm["K"],
+        bc_bapp_sn: capturedForm["O"],
+        bapp_hal1: capturedForm["Q"],
+        bapp_hal2: capturedForm["R"],
+        nm_ttd_bapp: capturedForm["S"],
+        stempel: capturedForm["T"],
       };
 
       const res = await fetch("/api/datasource/submit", {
@@ -553,7 +531,7 @@ export default function Home() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              id: currentItem.action_id,
+              id: capturedItem.action_id,
               cookie: session,
             }),
           });
@@ -647,15 +625,15 @@ export default function Home() {
           }
         }
 
-        if (currentDacSession && parsedData.extractedId) {
+        if (currentDacSession && capturedParsedData.extractedId) {
           // Di dalam submitToDataSource setelah finalNote didapatkan:
           console.log("Parsed Rejection Note:", finalNote);
 
           const approvalPayload = {
             status: finalNote.length > 0 ? 3 : 2,
-            id: parsedData.extractedId,
-            npsn: parsedData.school.npsn,
-            resi: parsedData.resi,
+            id: capturedParsedData.extractedId,
+            npsn: capturedParsedData.school.npsn,
+            resi: capturedParsedData.resi,
             note: finalNote,
             session_id: currentDacSession,
           };
@@ -664,21 +642,22 @@ export default function Home() {
             // INTERUPSI: Simpan data dan tampilkan Modal
             setPendingApprovalData(approvalPayload);
             setManualNote(finalNote); // Isi textarea modal dengan alasan otomatis
+            setIsSubmitting(false); // Enable buttons for Modal interaction
             setShowNoteModal(true);
           } else {
             // FLOW LAMA: Langsung jalankan
             await executeSaveApproval(approvalPayload);
-            handleSkip(false);
+            setIsSubmitting(false);
           }
         }
       } else {
         console.error("Submit failed", json.message);
         alert(`Gagal submit: ${json.message}`);
+        setIsSubmitting(false);
       }
     } catch (e) {
       console.error("Submit error", e);
       alert("Terjadi kesalahan saat submit.");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -831,8 +810,11 @@ export default function Home() {
     // const note = customReason || 'Ditolak';
     await submitToDataSource(false);
   };
-  const handleSkip = (skipped: boolean) =>
+  const handleSkip = (skipped: boolean) => {
+    // Gapless disable: Disable immediately when skipping to next item
+    setIsTransientDisabled(true);
     setCurrentTaskIndex((prev) => prev + 1);
+  };
 
   const rotateImage = (dir: "left" | "right") =>
     setImageRotation((p) => (dir === "right" ? p + 45 : p - 45));
@@ -974,9 +956,19 @@ export default function Home() {
               </div>
               {/* Image Gallery */}
               <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5">
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b dark:border-zinc-700 pb-2">
-                  Dokumentasi Pengiriman
-                </h2>
+                <div className="flex justify-between items-center mb-4 border-b dark:border-zinc-700 pb-2">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                    Dokumentasi Pengiriman
+                  </h2>
+                  <button
+                    onClick={handleRefetch}
+                    disabled={detailLoading}
+                    className="text-xs px-2 py-1 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded text-zinc-600 dark:text-zinc-300 transition-colors flex items-center gap-1"
+                    title="Refetch current item"
+                  >
+                    <span className={detailLoading ? "animate-spin" : ""}>⟳</span> Refetch
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {parsedData.images.map((img, idx) => (
                     <div
@@ -1041,161 +1033,166 @@ export default function Home() {
           setPosition={handleSetSidebarPosition}
           enableManualNote={enableManualNote}
           setEnableManualNote={setEnableManualNote}
+          transientDisabled={isTransientDisabled}
         />
       </div>
 
       {/* Layout for Image Viewer Modal */}
-      {currentImageIndex !== null && parsedData && (
-        <div>
-          <StickyInfoBox
-            schoolData={parsedData.school}
-            itemData={parsedData.item}
-            history={parsedData.history}
-          />
+      {
+        currentImageIndex !== null && parsedData && (
+          <div>
+            <StickyInfoBox
+              schoolData={parsedData.school}
+              itemData={parsedData.item}
+              history={parsedData.history}
+            />
 
-          <div
-            className={`absolute top-0 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm transition-all duration-300 ${sidebarPosition === "left" ? "left-96 right-0" : "left-0 right-96"
-              }`}
-            onClick={() => setCurrentImageIndex(null)}
-          >
-            {/* Sticky Info */}
-
-            {/* Toolbar */}
             <div
-              className="absolute top-4 right-4 z-[60] flex gap-2"
-              onClick={(e) => e.stopPropagation()}
+              className={`absolute top-0 bottom-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm transition-all duration-300 ${sidebarPosition === "left" ? "left-96 right-0" : "left-0 right-96"
+                }`}
+              onClick={() => setCurrentImageIndex(null)}
             >
-              <button
-                onClick={() => rotateImage("left")}
-                className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full font-bold transition-colors"
-              >
-                ↺
-              </button>
-              <button
-                onClick={() => rotateImage("right")}
-                className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full font-bold transition-colors"
-              >
-                ↻
-              </button>
-              <button
-                onClick={() => setCurrentImageIndex(null)}
-                className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-full font-bold transition-colors"
-              >
-                ✕
-              </button>
-            </div>
+              {/* Sticky Info */}
 
-            {/* Main Image Area */}
-            <div
-              className="flex-1 flex items-center justify-center p-4 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <TransformWrapper
-                key={currentImageIndex + "-" + imageRotation}
-                initialScale={1}
-                centerOnInit
+              {/* Toolbar */}
+              <div
+                className="absolute top-4 right-4 z-[60] flex gap-2"
+                onClick={(e) => e.stopPropagation()}
               >
-                <TransformComponent
-                  wrapperClass="!w-full !h-full"
-                  contentClass="!w-full !h-full flex items-center justify-center"
+                <button
+                  onClick={() => rotateImage("left")}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full font-bold transition-colors"
                 >
-                  <img
-                    src={parsedData.images[currentImageIndex].src}
-                    alt="Preview"
-                    style={{
-                      transform: `rotate(${imageRotation}deg)`,
-                      maxWidth: "90vw",
-                      maxHeight: "85vh",
-                      objectFit: "contain",
-                    }}
-                    className="rounded shadow-2xl transition-transform duration-200"
-                  />
-                </TransformComponent>
-              </TransformWrapper>
-            </div>
+                  ↺
+                </button>
+                <button
+                  onClick={() => rotateImage("right")}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full font-bold transition-colors"
+                >
+                  ↻
+                </button>
+                <button
+                  onClick={() => setCurrentImageIndex(null)}
+                  className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-full font-bold transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
 
-            {/* Navigation Arrows */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentImageIndex(
-                  (currentImageIndex - 1 + parsedData.images.length) %
-                  parsedData.images.length,
-                );
-              }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl transition-colors p-4"
-            >
-              ‹
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentImageIndex(
-                  (currentImageIndex + 1) % parsedData.images.length,
-                );
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl transition-colors p-4"
-            >
-              ›
-            </button>
-
-            {/* Caption */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white font-medium backdrop-blur-md">
-              {parsedData.images[currentImageIndex].title} (
-              {currentImageIndex + 1} / {parsedData.images.length})
-            </div>
-          </div>
-        </div>
-      )}
-      {showNoteModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-700 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-              <h3 className="text-white font-bold">
-                Edit Catatan Approval DAC
-              </h3>
-              <span
-                className={`px-2 py-1 rounded text-[10px] font-bold ${pendingApprovalData?.status === 2
-                  ? "bg-green-900 text-green-400"
-                  : "bg-red-900 text-red-400"
-                  }`}
+              {/* Main Image Area */}
+              <div
+                className="flex-1 flex items-center justify-center p-4 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
               >
-                {pendingApprovalData?.status === 2 ? "APPROVE" : "REJECT"}
-              </span>
-            </div>
-            <div className="p-4">
-              <label className="text-xs text-zinc-500 mb-2 block uppercase font-bold tracking-tighter">
-                Catatan (Preview dari Source):
-              </label>
-              <textarea
-                value={manualNote}
-                onChange={(e) => setManualNote(e.target.value)}
-                className="w-full h-48 bg-black border border-zinc-700 rounded p-3 text-sm text-zinc-200 focus:border-blue-500 outline-none font-mono"
-                placeholder="Tambahkan catatan tambahan di sini..."
-              />
-            </div>
-            <div className="p-4 bg-zinc-800/50 flex gap-2">
+                <TransformWrapper
+                  key={currentImageIndex + "-" + imageRotation}
+                  initialScale={1}
+                  centerOnInit
+                >
+                  <TransformComponent
+                    wrapperClass="!w-full !h-full"
+                    contentClass="!w-full !h-full flex items-center justify-center"
+                  >
+                    <img
+                      src={parsedData.images[currentImageIndex].src}
+                      alt="Preview"
+                      style={{
+                        transform: `rotate(${imageRotation}deg)`,
+                        maxWidth: "90vw",
+                        maxHeight: "85vh",
+                        objectFit: "contain",
+                      }}
+                      className="rounded shadow-2xl transition-transform duration-200"
+                    />
+                  </TransformComponent>
+                </TransformWrapper>
+              </div>
+
+              {/* Navigation Arrows */}
               <button
-                onClick={() => {
-                  executeSaveApproval(pendingApprovalData);
-                  setShowNoteModal(false);
-                  handleSkip(false);
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImageIndex(
+                    (currentImageIndex - 1 + parsedData.images.length) %
+                    parsedData.images.length,
+                  );
                 }}
-                className="flex-1 py-2 text-zinc-400 hover:text-white transition-colors text-sm"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl transition-colors p-4"
               >
-                Lewati Edit
+                ‹
               </button>
               <button
-                onClick={handleConfirmManualNote}
-                className="flex-2 px-8 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold text-sm transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImageIndex(
+                    (currentImageIndex + 1) % parsedData.images.length,
+                  );
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl transition-colors p-4"
               >
-                SIMPAN KE DAC
+                ›
               </button>
+
+              {/* Caption */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white font-medium backdrop-blur-md">
+                {parsedData.images[currentImageIndex].title} (
+                {currentImageIndex + 1} / {parsedData.images.length})
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+      {
+        showNoteModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-zinc-900 border border-zinc-700 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden">
+              <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <h3 className="text-white font-bold">
+                  Edit Catatan Approval DAC
+                </h3>
+                <span
+                  className={`px-2 py-1 rounded text-[10px] font-bold ${pendingApprovalData?.status === 2
+                    ? "bg-green-900 text-green-400"
+                    : "bg-red-900 text-red-400"
+                    }`}
+                >
+                  {pendingApprovalData?.status === 2 ? "APPROVE" : "REJECT"}
+                </span>
+              </div>
+              <div className="p-4">
+                <label className="text-xs text-zinc-500 mb-2 block uppercase font-bold tracking-tighter">
+                  Catatan (Preview dari Source):
+                </label>
+                <textarea
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                  className="w-full h-48 bg-black border border-zinc-700 rounded p-3 text-sm text-zinc-200 focus:border-blue-500 outline-none font-mono"
+                  placeholder="Tambahkan catatan tambahan di sini..."
+                />
+              </div>
+              <div className="p-4 bg-zinc-800/50 flex gap-2">
+                <button
+                  onClick={() => {
+                    executeSaveApproval(pendingApprovalData);
+                    setShowNoteModal(false);
+                    handleSkip(false);
+                  }}
+                  className="flex-1 py-2 text-zinc-400 hover:text-white transition-colors text-sm"
+                >
+                  Lewati Edit
+                </button>
+                <button
+                  onClick={handleConfirmManualNote}
+                  className="flex-2 px-8 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold text-sm transition-colors"
+                >
+                  SIMPAN KE DAC
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }
 

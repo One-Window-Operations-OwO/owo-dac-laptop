@@ -104,10 +104,9 @@ const RadioOption = ({
     onClick={() => onChange(fieldId, option)}
     disabled={disabled}
     className={`px-3 py-1 text-xs rounded-full border transition-colors disabled:opacity-50 mb-1 mr-1
-      ${
-        checked
-          ? "bg-blue-500 border-blue-500 text-white font-semibold"
-          : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500"
+      ${checked
+        ? "bg-blue-500 border-blue-500 text-white font-semibold"
+        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500"
       }`}
   >
     {option}
@@ -131,6 +130,7 @@ interface SidebarProps {
   setPosition: (pos: "left" | "right") => void;
   enableManualNote: boolean;
   setEnableManualNote: (val: boolean) => void;
+  transientDisabled?: boolean;
 }
 
 export const defaultEvaluationValues: Record<string, string> = {
@@ -167,12 +167,14 @@ export default function Sidebar({
   setPosition,
   enableManualNote,
   setEnableManualNote,
+  transientDisabled,
 }: SidebarProps & {
   currentImageIndex: number | null;
   date?: string;
   setDate?: (date: string) => void;
   snBapp?: string;
   setSnBapp?: (val: string) => void;
+  transientDisabled?: boolean;
 }) {
   // Define Mapping here or outside component
   const IMAGE_FIELD_MAPPING: Record<number, string[]> = {
@@ -221,7 +223,10 @@ export default function Sidebar({
   });
 
   const buttonsDisabled =
-    isSubmitting || pendingCount === null || pendingCount === 0;
+    isSubmitting ||
+    pendingCount === null ||
+    pendingCount === 0 ||
+    !!transientDisabled;
 
   const mainButtonLabel = isFormDefault ? "TERIMA" : "TOLAK";
   const mainButtonColor = isFormDefault
@@ -248,22 +253,20 @@ export default function Sidebar({
           <div className="flex bg-gray-900 p-0.5 rounded-full border border-gray-600">
             <button
               onClick={() => setPosition("left")}
-              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                position === "left"
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${position === "left"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-gray-500 hover:text-gray-300"
-              }`}
+                }`}
               title="Left Layout"
             >
               L
             </button>
             <button
               onClick={() => setPosition("right")}
-              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                position === "right"
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${position === "right"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-gray-500 hover:text-gray-300"
-              }`}
+                }`}
               title="Right Layout"
             >
               R
@@ -277,21 +280,19 @@ export default function Sidebar({
         <div className="flex bg-gray-700 rounded p-1 mt-2 mb-2">
           <button
             onClick={() => setFilterMode("specific")}
-            className={`flex-1 py-1 text-xs rounded font-bold transition-all ${
-              filterMode === "specific"
+            className={`flex-1 py-1 text-xs rounded font-bold transition-all ${filterMode === "specific"
                 ? "bg-blue-600 text-white shadow"
                 : "text-gray-400 hover:text-gray-200"
-            }`}
+              }`}
           >
             Filtered
           </button>
           <button
             onClick={() => setFilterMode("all")}
-            className={`flex-1 py-1 text-xs rounded font-bold transition-all ${
-              filterMode === "all"
+            className={`flex-1 py-1 text-xs rounded font-bold transition-all ${filterMode === "all"
                 ? "bg-blue-600 text-white shadow"
                 : "text-gray-400 hover:text-gray-200"
-            }`}
+              }`}
           >
             Default
           </button>
@@ -341,7 +342,7 @@ export default function Sidebar({
               evaluationForm["O"] !== "Ada" && evaluationForm["O"] !== "Sesuai"
                 ? "block"
                 : "hidden"
-            }`}
+              }`}
           >
             <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block mb-1">
               Input SN BAPP
@@ -396,14 +397,12 @@ export default function Sidebar({
           </span>
           <button
             onClick={() => setEnableManualNote(!enableManualNote)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-              enableManualNote ? "bg-blue-600" : "bg-gray-600"
-            }`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${enableManualNote ? "bg-blue-600" : "bg-gray-600"
+              }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                enableManualNote ? "translate-x-6" : "translate-x-1"
-              }`}
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enableManualNote ? "translate-x-6" : "translate-x-1"
+                }`}
             />
           </button>
         </div>
@@ -411,18 +410,16 @@ export default function Sidebar({
           <button
             onClick={() => handleSkip(true)}
             disabled={buttonsDisabled}
-            className={`flex-1 p-3 bg-gray-500 rounded-md text-white font-bold hover:bg-gray-400 disabled:opacity-50 transition-colors ${
-              isSubmitting ? "animate-pulse" : ""
-            }`}
+            className={`flex-1 p-3 bg-gray-500 rounded-md text-white font-bold hover:bg-gray-400 disabled:opacity-50 transition-colors ${isSubmitting ? "animate-pulse" : ""
+              }`}
           >
             {isSubmitting ? <Spinner /> : "SKIP"}
           </button>
           <button
             onClick={mainButtonAction}
             disabled={buttonsDisabled}
-            className={`flex-1 p-3 rounded-md text-white font-bold disabled:opacity-50 transition-colors ${mainButtonColor} ${
-              isSubmitting ? "animate-pulse" : ""
-            }`}
+            className={`flex-1 p-3 rounded-md text-white font-bold disabled:opacity-50 transition-colors ${mainButtonColor} ${isSubmitting ? "animate-pulse" : ""
+              }`}
           >
             {isSubmitting ? <Spinner /> : mainButtonLabel}
           </button>

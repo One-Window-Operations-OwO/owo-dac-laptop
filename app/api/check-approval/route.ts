@@ -22,6 +22,8 @@ export async function POST(request: Request) {
         formData.append('npsn', npsnValue);
         formData.append('termin', 'all');
         formData.append('sn', sn);
+        formData.append('start', '0');
+        formData.append('length', '10');
 
         const targetUrl = 'https://kemdikdasmen.mastermedia.co.id/app/approval/filter_table';
 

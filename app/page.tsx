@@ -297,11 +297,13 @@ export default function Home() {
         setParsedData(null);
       }
     }
+  }, [sheetData, currentTaskIndex]);
 
+  useEffect(() => {
     if (sheetData.length > 0 && sidebarOptions.length === 0) {
       fetchSidebarOptions();
     }
-  }, [sheetData, currentTaskIndex, sidebarOptions.length]);
+  }, [sheetData.length, sidebarOptions.length]);
 
   useEffect(() => {
     const prefetchNext = async () => {
@@ -1377,7 +1379,15 @@ export default function Home() {
                 ? "Loading task data..."
                 : sheetData.length === 0
                   ? "Fetching task list..."
-                  : "All tasks completed!"}
+                  : currentTaskIndex < sheetData.length
+                    ? (
+                        <div className="text-center">
+                          <p className="text-red-500 mb-4 dark:text-red-400">Gagal memuat data dari DAC untuk item ini (kemungkinan SN salah, tidak ditemukan, atau masalah jaringan).</p>
+                          <button onClick={() => handleSkip(false)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors font-medium cursor-pointer">Skip (Lewati)</button>
+                          <button onClick={handleRefetch} className="ml-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors font-medium shadow cursor-pointer">Coba Lagi</button>
+                        </div>
+                      )
+                    : "All tasks completed!"}
             </div>
           )}
         </div>

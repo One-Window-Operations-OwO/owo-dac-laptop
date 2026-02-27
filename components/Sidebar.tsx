@@ -114,7 +114,10 @@ const RadioOption = ({
 }: RadioOptionProps) => (
   <button
     type="button"
-    onClick={() => onChange(fieldId, option)}
+    onClick={(e) => {
+      onChange(fieldId, option);
+      e.currentTarget.blur();
+    }}
     disabled={disabled}
     className={`px-3 py-1 text-xs rounded-full border transition-colors disabled:opacity-50 mb-1 mr-1
       ${checked
@@ -406,9 +409,10 @@ export default function Sidebar({
                   ) : (
                     <select
                       value={evaluationForm[field.id] || field.options[0]}
-                      onChange={(e) =>
-                        handleFormChange(field.id, e.target.value)
-                      }
+                      onChange={(e) => {
+                        handleFormChange(field.id, e.target.value);
+                        e.target.blur();
+                      }}
                       disabled={buttonsDisabled || disabledFields.includes(field.id)}
                       className={`w-full rounded px-2 py-1 text-xs text-white focus:outline-none mb-1 border ${(evaluationForm[field.id] || field.options[0]) !==
                         field.options[0]

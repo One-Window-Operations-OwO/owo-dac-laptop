@@ -1268,8 +1268,8 @@ export default function Home() {
                   <div className="col-span-full border-t border-dashed border-zinc-300 dark:border-zinc-700 mt-2 pt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
                       <InfoItem
-                        label="Update Pengiriman"
-                        value={parsedData.shipping?.firstLogDate || "-"}
+                        label="Update Pengiriman (Tanggal BAPP)"
+                        value={verificationDate || parsedData.shipping?.firstLogDate || "-"}
                       />
                       <InfoItem
                         label="Status Pengiriman"

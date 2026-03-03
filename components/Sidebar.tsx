@@ -98,7 +98,6 @@ const IMAGE_FIELD_MAPPING: Record<number, string[]> = {
 // Mapping Keyword Title Gambar → Field Form (untuk Auto-Fill Penolakan)
 // Pendekatan berbasis title karena urutan gambar tidak dijamin (index tidak valid)
 const IMAGE_TITLE_FIELD_MAP: Array<{ keywords: string[]; fields: string[]; excludeKeywords?: string[] }> = [
-  { keywords: ["geo", "geotag", "geo tag"], fields: ["G"] },
   { keywords: ["plang", "papan", "identitas", "serah terima", "sekolah"], fields: ["H", "I"] },
   { keywords: ["kelengkapan", "unit", "laptop"], fields: ["J"] },
   { keywords: ["dxdiag"], fields: ["K"] },

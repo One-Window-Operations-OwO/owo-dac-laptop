@@ -85,7 +85,7 @@ export const errorMap: Record<string, Record<string, string>> = {
   },
 };
 
-// Mapping Index Image ke ID Field Form
+// Mapping Index Image ke ID Field Form (dipakai untuk filter kontekstual sidebar)
 const IMAGE_FIELD_MAPPING: Record<number, string[]> = {
   0: ["G", "H", "I"],    // Gambar 1 (Plang Sekolah/Serah Terima)
   1: ["J"],              // Gambar 2 (Kelengkapan)
@@ -93,6 +93,39 @@ const IMAGE_FIELD_MAPPING: Record<number, string[]> = {
   3: ["O", "Q"],         // Gambar 4 (BAPP Hal 1)
   4: ["F", "R", "S", "T"] // Gambar 5 (BAPP Hal 2)
   // Index 5+ akan default ke semua opsi
+};
+
+// Mapping Keyword Title Gambar → Field Form (untuk Auto-Fill Penolakan)
+// Pendekatan berbasis title karena urutan gambar tidak dijamin (index tidak valid)
+const IMAGE_TITLE_FIELD_MAP: Array<{ keywords: string[]; fields: string[]; excludeKeywords?: string[] }> = [
+  { keywords: ["geo", "geotag", "geo tag"], fields: ["G"] },
+  { keywords: ["plang", "papan", "identitas", "serah terima", "sekolah"], fields: ["H", "I"] },
+  { keywords: ["kelengkapan", "unit", "laptop"], fields: ["J"] },
+  { keywords: ["dxdiag"], fields: ["K"] },
+  // BAPP Hal 1: cocok jika ada "bapp" DAN ("hal 1" / "halaman 1" / "1") tapi TIDAK "hal 2" / "halaman 2" / "2"
+  { keywords: ["hal 1", "halaman 1", "bapp 1", "bapp1"], fields: ["O", "Q"] },
+  // BAPP Hal 2: cocok jika ada "bapp" DAN ("hal 2" / "halaman 2" / "2")
+  { keywords: ["hal 2", "halaman 2", "bapp 2", "bapp2"], fields: ["R", "S", "T"] },
+];
+
+/**
+ * Mendeteksi kategori foto mana yang TIDAK ADA berdasarkan title gambar.
+ * Mengembalikan daftar field ID form yang harus diisi "Tidak ada".
+ */
+const detectMissingFields = (images: Array<{ src: string; title: string }>): string[] => {
+  const titles = images.map((img) => img.title.toLowerCase());
+  const missingFields: string[] = [];
+
+  for (const entry of IMAGE_TITLE_FIELD_MAP) {
+    const found = titles.some((t) =>
+      entry.keywords.some((kw) => t.includes(kw))
+    );
+    if (!found) {
+      missingFields.push(...entry.fields);
+    }
+  }
+
+  return missingFields;
 };
 
 interface RadioOptionProps {
@@ -158,6 +191,8 @@ interface SidebarProps {
   errorMessage?: string;
   onRetry?: () => void;
   disabledFields?: string[];
+  // Images dari DAC untuk deteksi foto yang tidak ada
+  images?: Array<{ src: string; title: string }>;
 }
 
 export const defaultEvaluationValues: Record<string, string> = {
@@ -202,6 +237,7 @@ export default function Sidebar({
   errorMessage = "",
   onRetry,
   disabledFields = [],
+  images = [],
 }: SidebarProps & {
   currentImageIndex: number | null;
   snBapp?: string;
@@ -244,6 +280,61 @@ export default function Sidebar({
     });
     setCustomReason(reasons.join("\n"));
   }, [evaluationForm, setCustomReason]);
+
+  // Auto-fill logic for missing images
+  const previousImagesStr = JSON.stringify(images);
+  useEffect(() => {
+    if (images && images.length > 0) {
+      const missingFields = detectMissingFields(images);
+      if (missingFields.length === 0) return;
+
+      const cascadedFields = new Set<string>();
+      const uniqueFields = [...new Set(missingFields)];
+
+      const priorityFields = ["Q", "R"];
+      const ordered = [
+        ...priorityFields.filter((f) => uniqueFields.includes(f)),
+        ...uniqueFields.filter((f) => !priorityFields.includes(f)),
+      ];
+
+      setEvaluationForm((prev) => {
+        let hasChanges = false;
+        const newForm = { ...prev };
+
+        ordered.forEach((fieldId) => {
+          if (cascadedFields.has(fieldId)) return;
+
+          const field = sidebarOptions.find((f) => f.id === fieldId);
+          const hasOption = field?.options.includes("Tidak ada");
+
+          if (hasOption && newForm[fieldId] !== "Tidak ada") {
+            newForm[fieldId] = "Tidak ada";
+            hasChanges = true;
+
+            // Cascade logic Q -> O
+            if (fieldId === "Q") {
+              cascadedFields.add("O");
+              if (newForm["O"] !== "Tidak ada") {
+                newForm["O"] = "Tidak ada";
+                hasChanges = true;
+                if (setSnBapp) setSnBapp("-"); // Update external state
+              }
+            }
+            // Cascade logic R -> S, T, F
+            else if (fieldId === "R") {
+              cascadedFields.add("S");
+              cascadedFields.add("T");
+              if (newForm["T"] !== "Tidak ada") { newForm["T"] = "Tidak ada"; hasChanges = true; }
+              if (newForm["F"] !== "Tidak ada") { newForm["F"] = "Tidak ada"; hasChanges = true; }
+              if (newForm["S"] !== "TTD tidak ada") { newForm["S"] = "TTD tidak ada"; hasChanges = true; }
+            }
+          }
+        });
+
+        return hasChanges ? newForm : prev;
+      });
+    }
+  }, [previousImagesStr, sidebarOptions, setSnBapp]);
 
   const handleFormChange = (id: string, value: string) => {
     // 1. Update state form (menggunakan functional update agar bisa memanipulasi field lain secara bersamaan)

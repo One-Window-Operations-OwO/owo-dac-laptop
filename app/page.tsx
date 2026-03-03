@@ -814,7 +814,7 @@ export default function Home() {
         setProcessingStatus("success");
         // Keep green for a moment, then idle only if queue is empty
         if (submissionQueue.current.length === 0) {
-           setTimeout(() => setProcessingStatus("idle"), 3000);
+          setTimeout(() => setProcessingStatus("idle"), 3000);
         }
 
       } catch (err: any) {
@@ -825,15 +825,15 @@ export default function Home() {
 
         // SAVE FOR RETRY
         setRetryPayloads({
-           submitPayload: payload,
-           item: item,
-           currentParsedData: task.currentParsedData
+          submitPayload: payload,
+          item: item,
+          currentParsedData: task.currentParsedData
         });
-        
+
         // STOP QUEUE PROCESSING ON ERROR?
         // Yes, usually better to stop and let user fix/retry than to pile up errors.
         setIsProcessingQueue(false);
-        return; 
+        return;
       }
     }
 
@@ -848,14 +848,14 @@ export default function Home() {
     shouldWaitUser: boolean,
     isRetry: boolean = false,
   ) => {
-    
+
     // 1. Optimistic Navigation (If not waiting for user input)
     if (!shouldWaitUser && !isRetry) {
-       setIsNavigating(true);
-       setTimeout(() => {
-          handleSkip(false);
-          setIsNavigating(false);
-       }, 500); // Small delay for visual feedback of button click
+      setIsNavigating(true);
+      setTimeout(() => {
+        handleSkip(false);
+        setIsNavigating(false);
+      }, 500); // Small delay for visual feedback of button click
     }
 
     // 2. Add to Queue
@@ -864,154 +864,154 @@ export default function Home() {
     // So here, 'handleSubmissionProcess' is called from 'prepareAndSubmit' with 'shouldWaitUser'.
 
     if (shouldWaitUser) {
-        // Prepare data for Modal, do not enqueue yet.
-       // We need to simulate the "Post-Submit" state for Manual Note.
-       // Original logic: Submit -> View Form -> Open Modal -> Save Approval.
-       // For Manual Note, we probably want to:
-       // 1. Submit (Background)
-       // 2. Open Modal (Foreground)
-       // 3. Save Approval (Foreground/Background)
-       
-       // Complex case. Let's simplify:
-       // If Manual Note is ON, we cannot maximize speed because user INTERACTION is required mid-stream (after submit, before approval).
-       // BUT, the user request says "tombol... tidak usah disabled", "data sekarang... bisa masuk juga sesuai queue".
-       // If manual note is ON, we probably can't fully background it because the user needs to write the note based on the *result* (or just edit the default).
-       
-       // Strategy for Manual Note:
-       // Treat it as a strictly synchronous/blocking flow for THAT item, OR
-       // Just open the modal immediately with pre-filled default note, let user edit, THEN enqueue everything?
-       // The original code submits first, then gets the note.
-       
-       // Let's stick to the prompt: "data sekarang yang di-submit juga akan bisa masuk juga tetapi sesuai queue"
-       
-       // Implementation:
-       // We will enqueue the task. The task will run.
-       // WAIT. If manual note is enabled, we need the user to input the note *before* we finish the process.
-       // Current implementation of 'prepareAndSubmit' calls this.
-       
-       // Correct Approach for Manual Note in Queue:
-       // We can't easily wait for user input inside a background queue without blocking the queue.
-       // COMPROMISE: If 'enableManualNote' is ON, we treat it as BLOCKING (Old Behavior) or 
-       // we require user to type note *before* clicking Terima/Tolak?
-       // Existing UI: User clicks "Edit Note" toggle.
-       
-       // Let's assume standard flow (No Manual Note) is the priority for speed.
-       // If Manual Note is ON, we execute as before (Blocking).
-       
-       if (shouldWaitUser) {
-           // Fallback to synchronous/blocking for Manual Note case
-           // Logic to open modal needs to be handled.
-           // For now, let's just enqueue it but with a flag? No, modal needs UI.
-           
-           // REVERT to partial blocking logic for Manual Note:
-           // 1. Submit (Optimistic? No, user needs to stay on page to write note?)
-           // Actually, if they want to write a note, they usually do it *before* or *during* approval.
-           // The original code: Submit -> Fetch Note from Server -> Show Modal with that note -> User edits -> Save.
-           
-           // If we want async:
-           // 1. User clicks Terima.
-           // 2. We assume "Note" is whatever is in the form + default. 
-           // If they wanted manual note, they should have typed it? 
-           // Ah, the "Manual Note" feature in this app fetches the *existing* note from the datasource first.
-           
-           // Okay, for `shouldWaitUser` (Manual Note Mode), we will NOT use the background queue optimistic skip.
-           // we will run it with `isNavigating` = true (Blocking UI).
-           
-           setProcessingStatus("processing");
-           // COPY PASTE OLD LOGIC FOR MANUAL NOTE (Simplified)
-           // Or just push to queue? Queue doesn't support pausing for UI.
-           
-           // Let's implement the queue for NON-Manual Note (Standard) flow.
-           // For Manual Note, we keep it blocking.
-           
-           setIsNavigating(true); // Block UI
-           
-             // Execute Legacy Blocking Flow (Inline here for safety)
-             // ... Call generic function?
-             // Let's just defer to a specialized handler or keep logic here.
-             
-             // Actually, refactoring `handleSubmissionProcess` to ONLY handle Queue is cleaner.
-             // I will create `enqueueSubmission` and `executeManualSubmission`.
-       }
+      // Prepare data for Modal, do not enqueue yet.
+      // We need to simulate the "Post-Submit" state for Manual Note.
+      // Original logic: Submit -> View Form -> Open Modal -> Save Approval.
+      // For Manual Note, we probably want to:
+      // 1. Submit (Background)
+      // 2. Open Modal (Foreground)
+      // 3. Save Approval (Foreground/Background)
+
+      // Complex case. Let's simplify:
+      // If Manual Note is ON, we cannot maximize speed because user INTERACTION is required mid-stream (after submit, before approval).
+      // BUT, the user request says "tombol... tidak usah disabled", "data sekarang... bisa masuk juga sesuai queue".
+      // If manual note is ON, we probably can't fully background it because the user needs to write the note based on the *result* (or just edit the default).
+
+      // Strategy for Manual Note:
+      // Treat it as a strictly synchronous/blocking flow for THAT item, OR
+      // Just open the modal immediately with pre-filled default note, let user edit, THEN enqueue everything?
+      // The original code submits first, then gets the note.
+
+      // Let's stick to the prompt: "data sekarang yang di-submit juga akan bisa masuk juga tetapi sesuai queue"
+
+      // Implementation:
+      // We will enqueue the task. The task will run.
+      // WAIT. If manual note is enabled, we need the user to input the note *before* we finish the process.
+      // Current implementation of 'prepareAndSubmit' calls this.
+
+      // Correct Approach for Manual Note in Queue:
+      // We can't easily wait for user input inside a background queue without blocking the queue.
+      // COMPROMISE: If 'enableManualNote' is ON, we treat it as BLOCKING (Old Behavior) or 
+      // we require user to type note *before* clicking Terima/Tolak?
+      // Existing UI: User clicks "Edit Note" toggle.
+
+      // Let's assume standard flow (No Manual Note) is the priority for speed.
+      // If Manual Note is ON, we execute as before (Blocking).
+
+      if (shouldWaitUser) {
+        // Fallback to synchronous/blocking for Manual Note case
+        // Logic to open modal needs to be handled.
+        // For now, let's just enqueue it but with a flag? No, modal needs UI.
+
+        // REVERT to partial blocking logic for Manual Note:
+        // 1. Submit (Optimistic? No, user needs to stay on page to write note?)
+        // Actually, if they want to write a note, they usually do it *before* or *during* approval.
+        // The original code: Submit -> Fetch Note from Server -> Show Modal with that note -> User edits -> Save.
+
+        // If we want async:
+        // 1. User clicks Terima.
+        // 2. We assume "Note" is whatever is in the form + default. 
+        // If they wanted manual note, they should have typed it? 
+        // Ah, the "Manual Note" feature in this app fetches the *existing* note from the datasource first.
+
+        // Okay, for `shouldWaitUser` (Manual Note Mode), we will NOT use the background queue optimistic skip.
+        // we will run it with `isNavigating` = true (Blocking UI).
+
+        setProcessingStatus("processing");
+        // COPY PASTE OLD LOGIC FOR MANUAL NOTE (Simplified)
+        // Or just push to queue? Queue doesn't support pausing for UI.
+
+        // Let's implement the queue for NON-Manual Note (Standard) flow.
+        // For Manual Note, we keep it blocking.
+
+        setIsNavigating(true); // Block UI
+
+        // Execute Legacy Blocking Flow (Inline here for safety)
+        // ... Call generic function?
+        // Let's just defer to a specialized handler or keep logic here.
+
+        // Actually, refactoring `handleSubmissionProcess` to ONLY handle Queue is cleaner.
+        // I will create `enqueueSubmission` and `executeManualSubmission`.
+      }
     }
 
     // --- ENQUEUE ---
     // If NOT Manual Note, we enqueue.
     if (!shouldWaitUser) {
-        submissionQueue.current.push({
-            session,
-            payload,
-            item,
-            currentParsedData,
-            shouldWaitUser,
-            isRetry
-        });
-        
-        // Trigger Processor
-        processQueue();
+      submissionQueue.current.push({
+        session,
+        payload,
+        item,
+        currentParsedData,
+        shouldWaitUser,
+        isRetry
+      });
+
+      // Trigger Processor
+      processQueue();
     } else {
-        // MANUAL NOTE CASE (Blocking)
-        // Check `executeSaveApproval` and friends.
-        // For now, reusing old logic logic inside this function is messy.
-        // Let's handle generic submit here.
-        
-        // Re-implementing the specific Manual Note Fetch-Submit-Modal flow here is too long.
-        // Instead, I will assume the user primarily wants speed for the DEFAULT flow.
-        
-        // If Manual Note is ON, we do strict handling.
-        await handleManualSubmissionList(session, payload, item, currentParsedData);
+      // MANUAL NOTE CASE (Blocking)
+      // Check `executeSaveApproval` and friends.
+      // For now, reusing old logic logic inside this function is messy.
+      // Let's handle generic submit here.
+
+      // Re-implementing the specific Manual Note Fetch-Submit-Modal flow here is too long.
+      // Instead, I will assume the user primarily wants speed for the DEFAULT flow.
+
+      // If Manual Note is ON, we do strict handling.
+      await handleManualSubmissionList(session, payload, item, currentParsedData);
     }
   };
-  
+
   // Helper for Manual Note (Blocking Flow)
   const handleManualSubmissionList = async (session: string, payload: any, item: any, currentParsedData: ExtractedData) => {
-      setProcessingStatus("processing");
-      try {
-          // 1. Submit
-          const res = await fetch("/api/datasource/submit", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ payload, cookie: session }),
-          });
-          const json = await res.json();
-          if (!json.success) throw new Error(json.message);
-          
-          // 2. View Form
-          let note = "";
-          const viewRes = await fetch("/api/datasource/view-form", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: item.action_id, cookie: session }),
-          });
-          const viewJson = await viewRes.json();
-            if (viewJson.success && viewJson.html) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(viewJson.html, "text/html");
-            const descInput = doc.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
-            if (descInput) note = descInput.value || descInput.textContent || "";
-          }
-          
-          // 3. Open Modal
-          const approvalPayload = {
-              status: note.length > 0 ? 3 : 2,
-              id: currentParsedData.extractedId,
-              npsn: currentParsedData.school.npsn,
-              resi: currentParsedData.resi,
-              note: note,
-              session_id: localStorage.getItem("dac_session") || "",
-              bapp_id: currentParsedData.bapp_id || "",
-          };
-          setPendingApprovalData(approvalPayload);
-          setManualNote(note);
-          setShowNoteModal(true);
-          setProcessingStatus("idle");
-          setIsNavigating(false); // Release UI block so user can interact
-          
-      } catch (e: any) {
-          setProcessingStatus("error");
-          setErrorMessage(e.message);
-          setIsNavigating(false); // Release UI block on error
+    setProcessingStatus("processing");
+    try {
+      // 1. Submit
+      const res = await fetch("/api/datasource/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload, cookie: session }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+
+      // 2. View Form
+      let note = "";
+      const viewRes = await fetch("/api/datasource/view-form", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.action_id, cookie: session }),
+      });
+      const viewJson = await viewRes.json();
+      if (viewJson.success && viewJson.html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(viewJson.html, "text/html");
+        const descInput = doc.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+        if (descInput) note = descInput.value || descInput.textContent || "";
       }
+
+      // 3. Open Modal
+      const approvalPayload = {
+        status: note.length > 0 ? 3 : 2,
+        id: currentParsedData.extractedId,
+        npsn: currentParsedData.school.npsn,
+        resi: currentParsedData.resi,
+        note: note,
+        session_id: localStorage.getItem("dac_session") || "",
+        bapp_id: currentParsedData.bapp_id || "",
+      };
+      setPendingApprovalData(approvalPayload);
+      setManualNote(note);
+      setShowNoteModal(true);
+      setProcessingStatus("idle");
+      setIsNavigating(false); // Release UI block so user can interact
+
+    } catch (e: any) {
+      setProcessingStatus("error");
+      setErrorMessage(e.message);
+      setIsNavigating(false); // Release UI block on error
+    }
   };
 
 
@@ -1381,12 +1381,12 @@ export default function Home() {
                   ? "Fetching task list..."
                   : currentTaskIndex < sheetData.length
                     ? (
-                        <div className="text-center">
-                          <p className="text-red-500 mb-4 dark:text-red-400">Gagal memuat data dari DAC untuk item ini (kemungkinan SN salah, tidak ditemukan, atau masalah jaringan).</p>
-                          <button onClick={() => handleSkip(false)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors font-medium cursor-pointer">Skip (Lewati)</button>
-                          <button onClick={handleRefetch} className="ml-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors font-medium shadow cursor-pointer">Coba Lagi</button>
-                        </div>
-                      )
+                      <div className="text-center">
+                        <p className="text-red-500 mb-4 dark:text-red-400">Gagal memuat data dari DAC untuk item ini (kemungkinan SN salah, tidak ditemukan, atau masalah jaringan).</p>
+                        <button onClick={() => handleSkip(false)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors font-medium cursor-pointer">Skip (Lewati)</button>
+                        <button onClick={handleRefetch} className="ml-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors font-medium shadow cursor-pointer">Coba Lagi</button>
+                      </div>
+                    )
                     : "All tasks completed!"}
             </div>
           )}
@@ -1426,6 +1426,7 @@ export default function Home() {
           errorMessage={errorMessage}
           onRetry={handleRetry}
           disabledFields={["F"]}
+          images={parsedData?.images ?? []}
         />
       </div>
 

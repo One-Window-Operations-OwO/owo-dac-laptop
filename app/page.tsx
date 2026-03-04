@@ -461,7 +461,7 @@ export default function Home() {
         setVerificationDate(prefetchedData.sentDate);
       }
       setSnBapp(item.serial_number || "");
-      setCurrentImageIndex(0);
+      setCurrentImageIndex(prefetchedData.images && prefetchedData.images.length > 0 ? 0 : null);
       setImageRotation(0);
       setPrefetchedData(null);
       return;
@@ -486,7 +486,7 @@ export default function Home() {
           setVerificationDate(data.sentDate);
         }
         // Reset view to first image only when new data arrives
-        setCurrentImageIndex(0);
+        setCurrentImageIndex(data.images && data.images.length > 0 ? 0 : null);
         setImageRotation(0);
       }
     } catch (err) {
@@ -1551,14 +1551,18 @@ export default function Home() {
                   wrapperStyle={{ width: "100%", height: "100%" }}
                   contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  <img
-                    src={parsedData.images[currentImageIndex].src}
-                    alt={parsedData.images[currentImageIndex].title}
-                    className="max-h-full max-w-full object-contain transition-transform duration-200"
-                    style={{
-                      transform: `rotate(${imageRotation}deg)`,
-                    }}
-                  />
+                  {parsedData.images[currentImageIndex] ? (
+                    <img
+                      src={parsedData.images[currentImageIndex].src}
+                      alt={parsedData.images[currentImageIndex].title}
+                      className="max-h-full max-w-full object-contain transition-transform duration-200"
+                      style={{
+                        transform: `rotate(${imageRotation}deg)`,
+                      }}
+                    />
+                  ) : (
+                    <div className="text-white font-bold">Gambar tidak tersedia</div>
+                  )}
                 </TransformComponent>
               </TransformWrapper>
             </div>
@@ -1610,8 +1614,9 @@ export default function Home() {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }
 

@@ -347,6 +347,23 @@ export default function Home() {
     console.log("Current ID State Updated:", id);
   }, [id]);
 
+  useEffect(() => {
+    // If no images exist for the current item, auto-select index 1 for all reasons
+    if (parsedData && parsedData.images && parsedData.images.length === 0 && sidebarOptions.length > 0) {
+      setEvaluationForm(prev => {
+        const next = { ...prev };
+        let changed = false;
+        sidebarOptions.forEach(opt => {
+          if (opt.options.length > 1 && next[opt.id] !== opt.options[1]) {
+            next[opt.id] = opt.options[1];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [parsedData?.extractedId, sidebarOptions.length]);
+
   const fetchScrapedData = async () => {
     const dsSession = localStorage.getItem("datasource_session");
 

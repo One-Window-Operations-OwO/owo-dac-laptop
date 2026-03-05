@@ -244,15 +244,7 @@ export default function Sidebar({
 }) {
   const [hidePendingCount, setHidePendingCount] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const handleSaveData = () => {
-    if (sheetData && sheetData.length > 0) {
-      localStorage.setItem("cached_scraped_data", JSON.stringify(sheetData));
-      localStorage.setItem("cached_data_timestamp", new Date().toISOString());
-      alert(`Berhasil menyimpan ${sheetData.length} data ke local storage.`);
-    } else {
-      alert("Tidak ada data untuk disimpan.");
-    }
-  };
+
 
   const [viewMode, setViewMode] = useState<"button" | "dropdown">("button");
   const [contextMode, setContextMode] = useState<"default" | "context">("default"); // Default or Context-Aware
@@ -699,62 +691,7 @@ export default function Sidebar({
                         </button>
                       </div>
                     </div>
-                    {/* Tombol Simpan Data Baru */}
-                    <button
-                      onClick={handleSaveData}
-                      className="w-full mb-2 p-2 bg-blue-700/20 hover:bg-blue-900/40 text-blue-300 hover:text-blue-200 text-xs rounded border border-blue-800/50 hover:border-blue-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                      </svg>
-                      SAVE FILTERED DATA
-                    </button>
 
-                    {/* TOMBOL BARU: RESET SAVED DATA */}
-                    <button
-                      onClick={() => {
-                        if (
-                          confirm(
-                            "Apakah Anda yakin ingin menghapus data yang tersimpan? Antrean akan diulang dari awal saat halaman direfresh.",
-                          )
-                        ) {
-                          localStorage.removeItem("cached_scraped_data");
-                          localStorage.removeItem("cached_data_timestamp");
-                          alert("Data tersimpan berhasil dihapus.");
-                          window.location.reload(); // Refresh untuk mengambil data segar dari API
-                        }
-                      }}
-                      className="w-full mb-2 p-2 bg-amber-700/20 hover:bg-amber-900/40 text-amber-300 hover:text-amber-200 text-xs rounded border border-amber-800/50 hover:border-amber-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      </svg>
-                      RESET SAVED DATA
-                    </button>
                     {/* Logout Button */}
                     <button
                       onClick={() => {

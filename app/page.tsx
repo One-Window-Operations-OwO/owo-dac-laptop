@@ -736,20 +736,6 @@ export default function Home() {
 
             if (json.success) {
               submitSuccess = true;
-              // Remove from local cache if successful
-              const cachedData = localStorage.getItem("cached_scraped_data");
-              if (cachedData) {
-                try {
-                  const parsedCache = JSON.parse(cachedData);
-                  const idx = parsedCache.findIndex((c: any) => c.npsn === item.npsn && c.no_bapp === item.no_bapp);
-                  if (idx !== -1) {
-                    parsedCache.splice(idx, 1);
-                    localStorage.setItem("cached_scraped_data", JSON.stringify(parsedCache));
-                  }
-                } catch (e) {
-                  console.error("Cache update failed", e);
-                }
-              }
               break; // Success, exit retry loop
             } else {
               console.warn(`[Queue] Submit failed (Attempt ${attempt}): ${json.message}`);
@@ -1515,10 +1501,6 @@ export default function Home() {
                 return prev;
               });
             }}
-            kepsek={datadikData.kepsek}
-            guruList={datadikData.guruList}
-            isLoadingGuru={datadikData.isLoading}
-            onRefetchDatadik={() => parsedData.school.npsn && fetchDatadik(parsedData.school.npsn, true)}
             isDateEditable={true}
           />
 

@@ -30,19 +30,38 @@ export async function POST(request: Request) {
         const extractIdFromData = (parsedData: any) => {
             let extracted = null;
             if (parsedData && parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
-                const rowData = parsedData.data[0];
-                for (let i = 0; i < rowData.length; i++) {
-                    if (typeof rowData[i] === 'string' && rowData[i].includes('data-id=')) {
-                        const match = rowData[i].match(/data-id=['"]([^'"]+)['"]/);
+                // Try to find a row whose NPSN column matches the requested npsn first.
+                // In the response array each row is: [no, bapp_id, npsn, nama_sekolah, item_name, sn, status, action_html]
+                // NPSN is at index 2.
+                const NPSN_INDEX = 2;
+
+                // Prefer the row that matches the requested NPSN. If none matches, fall back to the
+                // first row so we don't silently produce a wrong approval from another school.
+                const matchingRow = parsedData.data.find(
+                    (row: any[]) => String(row[NPSN_INDEX]).trim() === String(npsn).trim()
+                );
+                const row = matchingRow ?? null;
+
+                if (!row) {
+                    console.log(
+                        `No row matching NPSN "${npsn}" found in approval data. ` +
+                        `Available NPSNs: ${parsedData.data.map((r: any[]) => r[NPSN_INDEX]).join(', ')}`
+                    );
+                    return null;
+                }
+
+                for (let i = 0; i < row.length; i++) {
+                    if (typeof row[i] === 'string' && row[i].includes('data-id=')) {
+                        const match = row[i].match(/data-id=['"]([^'"]+)['"]/);
                         if (match && match[1]) {
                             extracted = match[1];
-                            console.log(`Extracted ID found at index ${i}:`, extracted);
+                            console.log(`Extracted ID found at index ${i} for NPSN ${npsn}:`, extracted);
                             break;
                         }
                     }
                 }
                 if (!extracted) {
-                    console.log('No extracted ID found in rowData. RowData was:', rowData);
+                    console.log('No extracted ID found in matched row. Row was:', row);
                 }
             } else {
                 console.log('API returned empty or invalid data.data');

@@ -428,6 +428,9 @@ export default function Home() {
           nama_sekolah: item.nama_sekolah,
           sn: item.serial_number,
           session_id: currentSessionId,
+          // Pass no_bapp so the API can match the correct row when a school
+          // has 2 laptops with identical NPSN and SN.
+          ...(item.no_bapp ? { no_bapp: item.no_bapp } : {}),
         }),
       });
       const checkJson = await checkRes.json();
@@ -442,7 +445,6 @@ export default function Home() {
         const detailJson = await detailRes.json();
 
         if (detailJson.html) {
-          // Pass bapp_id if available in summary
           const bappId = detailJson.data?.summary?.bapp_id;
           return parseHtmlData(detailJson.html, targetId, bappId);
         }
@@ -1480,6 +1482,7 @@ export default function Home() {
             itemData={parsedData.item}
             history={parsedData.history}
             date={verificationDate}
+            no_bapp={sheetData[currentTaskIndex]?.no_bapp}
             setDate={(newDate: string) => {
               setVerificationDate(newDate);
 

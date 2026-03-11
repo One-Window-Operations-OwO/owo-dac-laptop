@@ -2,18 +2,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
     try {
-        const { npsn, nama_sekolah, sn, session_id } = await request.json();
+        const { npsn, nama_sekolah, sn, session_id, no_bapp } = await request.json();
 
         if (!npsn || !nama_sekolah || !sn || !session_id) {
             return NextResponse.json({ success: false, message: 'Missing parameters' }, { status: 400 });
         }
 
-        // Construct the body for x-www-form-urlencoded
-        // npsn format: "20215401+-+SD+NEGERI+2+KEPONGPONGAN+KECAMATAN+TALUN"
-        // It seems they want spaces replaced by '+' or standard URL encoding which usually encodes space as %20 or +.
-        // Standard URLSearchParams encodes space as '+'.
-
-        // Combining NPSN and Nama Sekolah
+        // Combining NPSN and Nama Sekolah for the datatable filter
         const npsnValue = `${npsn} - ${nama_sekolah}`;
 
         const formData = new URLSearchParams();
@@ -30,32 +25,94 @@ export async function POST(request: Request) {
         const extractIdFromData = (parsedData: any) => {
             let extracted = null;
             if (parsedData && parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
-                // Try to find a row whose NPSN column matches the requested npsn first.
-                // In the response array each row is: [no, bapp_id, npsn, nama_sekolah, item_name, sn, status, action_html]
-                // NPSN is at index 2.
                 const NPSN_INDEX = 2;
 
-                // Prefer the row that matches the requested NPSN. If none matches, fall back to the
-                // first row so we don't silently produce a wrong approval from another school.
-                const matchingRow = parsedData.data.find(
+                // Rows that match the requested NPSN
+                const npsnRows = parsedData.data.filter(
                     (row: any[]) => String(row[NPSN_INDEX]).trim() === String(npsn).trim()
                 );
-                const row = matchingRow ?? null;
 
-                if (!row) {
+                if (npsnRows.length === 0) {
                     console.log(
-                        `No row matching NPSN "${npsn}" found in approval data. ` +
+                        `No row matching NPSN "${npsn}" found. ` +
                         `Available NPSNs: ${parsedData.data.map((r: any[]) => r[NPSN_INDEX]).join(', ')}`
                     );
                     return null;
                 }
+
+                // If no_bapp is provided, try to find the exact row.
+                // From the actual API response, row[1] is the FULL no_bapp string
+                // (e.g. "127777/BAPP/M2-KEMENDIKDASMEN/2025"), not a bare number.
+                // Strategy (ordered by reliability):
+                //   1. Exact string match: row[1] === no_bapp
+                //   2. startsWith numeric prefix: row[1].startsWith("127777")
+                //   3. Full-text .includes() across all cells (catch-all)
+                //   4. Warn and fall back to first matching NPSN row
+                const BAPP_ID_INDEX = 1;
+                let row: any[] | null = null;
+                if (no_bapp && npsnRows.length > 1) {
+                    const normalizedNoBapp = String(no_bapp).trim();
+                    const numericPrefix = normalizedNoBapp.match(/^(\d+)/)?.[1] ?? '';
+
+                    let matched: any[] | undefined;
+
+                    // 1. Exact match on row[1]
+                    matched = npsnRows.find((r: any[]) =>
+                        String(r[BAPP_ID_INDEX]).trim() === normalizedNoBapp
+                    );
+                    if (matched) {
+                        console.log(`[NoBAPP] Exact match on row[1] for "${normalizedNoBapp}".`);
+                    }
+
+                    // 2. row[1].startsWith(numericPrefix) — reliable even if suffix differs
+                    if (!matched && numericPrefix) {
+                        matched = npsnRows.find((r: any[]) =>
+                            String(r[BAPP_ID_INDEX]).trim().startsWith(numericPrefix)
+                        );
+                        if (matched) {
+                            console.log(`[NoBAPP] Matched row[1] via startsWith("${numericPrefix}").`);
+                        }
+                    }
+
+                    // 3. Full-text .includes() across all string cells
+                    if (!matched) {
+                        const lowerTarget = normalizedNoBapp.toLowerCase();
+                        matched = npsnRows.find((r: any[]) =>
+                            r.some((cell: any) =>
+                                typeof cell === 'string' &&
+                                cell.toLowerCase().includes(lowerTarget)
+                            )
+                        );
+                        if (matched) {
+                            console.log(`[NoBAPP] Matched via full-text search for "${normalizedNoBapp}".`);
+                        }
+                    }
+
+                    if (matched) {
+                        row = matched;
+                    } else {
+                        console.warn(
+                            `[NoBAPP] All strategies failed for no_bapp "${normalizedNoBapp}". ` +
+                            `Row bapp values: ${npsnRows.map((r: any[]) => r[BAPP_ID_INDEX]).join(' | ')}. ` +
+                            `Falling back to first NPSN match.`
+                        );
+                        row = npsnRows[0];
+                    }
+                } else {
+                    if (no_bapp && npsnRows.length === 1) {
+                        console.log(`[NoBAPP] Only one NPSN row; using it (hint: "${no_bapp}").`);
+                    }
+                    row = npsnRows[0];
+                }
+
+                if (!row) return null;
 
                 for (let i = 0; i < row.length; i++) {
                     if (typeof row[i] === 'string' && row[i].includes('data-id=')) {
                         const match = row[i].match(/data-id=['"]([^'"]+)['"]/);
                         if (match && match[1]) {
                             extracted = match[1];
-                            console.log(`Extracted ID found at index ${i} for NPSN ${npsn}:`, extracted);
+                            console.log(`Extracted ID at index ${i} for NPSN ${npsn}${no_bapp ? ` / no_bapp ${no_bapp}` : ''}:`, extracted);
                             break;
                         }
                     }
@@ -97,7 +154,7 @@ export async function POST(request: Request) {
 
         // If 404, the endpoint might have changed to targetUrlFallback
         if (res.status === 404) {
-            console.log('Got 404 on filter_table, trying fallback URL');
+            console.log('Got 404 on datatable, trying fallback URL');
             const fallbackRes = await fetchWithData(targetUrlFallback, formData);
             res = fallbackRes.res;
             data = fallbackRes.parsedData;
@@ -105,7 +162,7 @@ export async function POST(request: Request) {
 
         let extractedId = extractIdFromData(data);
 
-        // FALLBACK 1: If strictly searching by "NPSN - Nama Sekolah" yields 0 rows, try just "NPSN" code
+        // FALLBACK 1: If strictly searching by "NPSN - Nama Sekolah" yields 0 rows, try just NPSN code
         if (!extractedId && data && data.data && data.data.length === 0) {
             console.log('Strict NPSN filter returned 0 rows. Trying fallback with NPSN code only:', npsn);
             formData.set('npsn', npsn);
@@ -119,7 +176,7 @@ export async function POST(request: Request) {
             extractedId = extractIdFromData(data);
         }
 
-        // FALLBACK 2: If searching by NPSN code still yields 0 rows, try searching across all schools just by SN
+        // FALLBACK 2: If NPSN code still yields 0 rows, try searching only by SN
         if (!extractedId && data && data.data && data.data.length === 0) {
             console.log('NPSN code filter returned 0 rows. Trying fallback with empty NPSN (only SN filter).');
             formData.set('npsn', '');

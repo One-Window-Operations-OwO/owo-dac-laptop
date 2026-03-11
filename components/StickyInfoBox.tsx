@@ -8,6 +8,7 @@ interface StickyInfoBoxProps {
   date?: string;
   setDate?: (date: string) => void;
   isDateEditable?: boolean;
+  no_bapp?: string;
 }
 
 function LogCard({ log }: { log: any }) {
@@ -126,6 +127,7 @@ export default function StickyInfoBox({
   date,
   setDate,
   isDateEditable = false,
+  no_bapp,
 }: StickyInfoBoxProps) {
   const boxRef = useRef<HTMLDivElement>(null!);
   const { position, handleMouseDown } = useDraggable<HTMLDivElement>(
@@ -240,6 +242,16 @@ export default function StickyInfoBox({
               {itemData.serial_number || "-"}
             </div>
           </div>
+          {no_bapp && (
+            <div>
+              <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                No BAPP
+              </div>
+              <div className="text-xs font-mono text-emerald-400 break-all">
+                {no_bapp}
+              </div>
+            </div>
+          )}
           <div>
             <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
               Alamat

@@ -180,6 +180,8 @@ interface SidebarProps {
   setPosition: (pos: "left" | "right") => void;
   enableManualNote: boolean;
   setEnableManualNote: (val: boolean) => void;
+  autoSkipLampiran: boolean;
+  setAutoSkipLampiran: (val: boolean) => void;
   dacUsername?: string;
   dataSourceUsername?: string;
   currentItemSn?: string;
@@ -226,6 +228,8 @@ export default function Sidebar({
   setPosition,
   enableManualNote,
   setEnableManualNote,
+  autoSkipLampiran,
+  setAutoSkipLampiran,
   dacUsername,
   dataSourceUsername,
   currentItemSn,
@@ -585,6 +589,23 @@ export default function Sidebar({
               >
                 <span
                   className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${enableManualNote ? "translate-x-5" : "translate-x-1"
+                    }`}
+                />
+              </button>
+            </div>
+
+            {/* Autoskip Lampiran Toggle */}
+            <div className="flex items-center gap-2 ml-1">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">
+                Skip Lampiran:
+              </span>
+              <button
+                onClick={() => setAutoSkipLampiran(!autoSkipLampiran)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${autoSkipLampiran ? "bg-purple-600" : "bg-gray-600"
+                  }`}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${autoSkipLampiran ? "translate-x-5" : "translate-x-1"
                     }`}
                 />
               </button>

@@ -99,6 +99,7 @@ export default function Home() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [manualNote, setManualNote] = useState("");
   const [enableManualNote, setEnableManualNote] = useState(false); // Default OFF
+  const [autoSkipLampiran, setAutoSkipLampiran] = useState(false); // Autoskip if Lampiran
   const [pendingApprovalData, setPendingApprovalData] = useState<any>(null);
 
   // Auth Usernames
@@ -363,6 +364,20 @@ export default function Home() {
       });
     }
   }, [parsedData?.extractedId, sidebarOptions.length]);
+
+  // Autoskip Lampiran Logic
+  useEffect(() => {
+    if (autoSkipLampiran && parsedData && parsedData.images && parsedData.images.length > 0) {
+      const hasLampiran = parsedData.images.some(img => img.title.toLowerCase().includes("lampiran"));
+      if (hasLampiran) {
+        console.log("Auto-skipping because Lampiran is present");
+        const timer = setTimeout(() => {
+          handleSkip(false);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [parsedData, autoSkipLampiran]);
 
   const fetchScrapedData = async () => {
     const dsSession = localStorage.getItem("datasource_session");
@@ -1422,6 +1437,8 @@ export default function Home() {
           setPosition={handleSetSidebarPosition}
           enableManualNote={enableManualNote}
           setEnableManualNote={setEnableManualNote}
+          autoSkipLampiran={autoSkipLampiran}
+          setAutoSkipLampiran={setAutoSkipLampiran}
           dacUsername={dacUsername}
           dataSourceUsername={dataSourceUsername}
           currentItemSn={sheetData[currentTaskIndex]?.serial_number}

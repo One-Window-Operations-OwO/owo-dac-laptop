@@ -9,6 +9,7 @@ interface StickyInfoBoxProps {
   setDate?: (date: string) => void;
   isDateEditable?: boolean;
   no_bapp?: string;
+  pdfLink?: string;
 }
 
 function LogCard({ log }: { log: any }) {
@@ -128,6 +129,7 @@ export default function StickyInfoBox({
   setDate,
   isDateEditable = false,
   no_bapp,
+  pdfLink,
 }: StickyInfoBoxProps) {
   const boxRef = useRef<HTMLDivElement>(null!);
   const { position, handleMouseDown } = useDraggable<HTMLDivElement>(
@@ -276,6 +278,19 @@ export default function StickyInfoBox({
               {itemData.nama_barang || "-"}
             </div>
           </div>
+
+          {pdfLink && (
+            <div className="pt-2">
+              <a
+                href={pdfLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center w-full px-3 py-2 bg-blue-600/20 border border-blue-500/50 text-blue-400 font-semibold rounded hover:bg-blue-600/40 transition-colors text-xs text-center break-all shadow-sm"
+              >
+                🚀 Lihat Surat Pernyataan (PDF)
+              </a>
+            </div>
+          )}
         </div>
 
         <hr className="border-zinc-700" />

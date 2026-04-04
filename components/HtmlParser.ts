@@ -36,6 +36,7 @@ export interface ExtractedData {
     sentDate?: string;
     bapp_id?: string;
     bapp_date?: string;
+    pdfLink?: string;
 }
 
 // Helper to parse HTML
@@ -188,6 +189,11 @@ export const parseHtmlData = (html: string, initialExtractedId: string, bapp_id?
         }
     }
 
+    // Parse Lampiran PDF
+    const pdfBtn = doc.querySelector('button[data-pdf]');
+    const pdfPath = pdfBtn ? pdfBtn.getAttribute("data-pdf") : undefined;
+    const pdfLink = pdfPath ? (pdfPath.startsWith("http") ? pdfPath : `https://kemdikdasmen.mastermedia.co.id${pdfPath}`) : undefined;
+
     return {
         school,
         item,
@@ -202,6 +208,7 @@ export const parseHtmlData = (html: string, initialExtractedId: string, bapp_id?
         resi: resi || "-",
         sentDate,
         bapp_id,
-        bapp_date: bappDateParsed
+        bapp_date: bappDateParsed,
+        pdfLink
     };
 };

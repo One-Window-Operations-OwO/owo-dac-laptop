@@ -1373,6 +1373,24 @@ export default function Home() {
                 )}
               </div>
 
+              {/* PDF Document Lampiran */}
+              {parsedData.pdfLink && (
+                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b dark:border-zinc-700 pb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                    Lampiran Tambahan
+                  </h2>
+                  <a
+                    href={parsedData.pdfLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
+                  >
+                    🚀 Lihat Surat Pernyataan (PDF)
+                  </a>
+                </div>
+              )}
+
               {/* Image Gallery */}
               <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5">
                 <div className="flex justify-between items-center mb-4 border-b dark:border-zinc-700 pb-2">
@@ -1518,6 +1536,7 @@ export default function Home() {
             history={parsedData.history}
             date={verificationDate}
             no_bapp={sheetData[currentTaskIndex]?.no_bapp}
+            pdfLink={parsedData.pdfLink}
             setDate={(newDate: string) => {
               setVerificationDate(newDate);
 

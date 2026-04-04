@@ -113,6 +113,7 @@ export default function Home() {
     approvalPayload?: any;
     item?: any;
     currentParsedData?: ExtractedData;
+    isApproved?: boolean;
   }>({});
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -700,7 +701,7 @@ export default function Home() {
       const task = submissionQueue.current.shift(); // Dequeue
       if (!task) continue;
 
-      const { session, payload, item, shouldWaitUser, isRetry } = task;
+      const { session, payload, item, shouldWaitUser, isRetry, isApproved } = task;
 
       // Update Status Light: Processing
       setProcessingStatus("processing");
@@ -792,7 +793,7 @@ export default function Home() {
 
         if (currentDacSession && currentParsedData?.extractedId) {
           const approvalPayload = {
-            status: finalNote.length > 0 ? 3 : 2, // 3=Tolak, 2=Terima
+            status: isApproved !== undefined ? (isApproved ? 2 : 3) : (finalNote.length > 0 ? 3 : 2), // 3=Tolak, 2=Terima
             id: currentParsedData.extractedId,
             npsn: currentParsedData.school.npsn,
             resi: currentParsedData.resi,
@@ -832,7 +833,8 @@ export default function Home() {
         setRetryPayloads({
           submitPayload: payload,
           item: item,
-          currentParsedData: task.currentParsedData
+          currentParsedData: task.currentParsedData,
+          isApproved: task.isApproved
         });
 
         // STOP QUEUE PROCESSING ON ERROR?
@@ -852,6 +854,7 @@ export default function Home() {
     currentParsedData: ExtractedData,
     shouldWaitUser: boolean,
     isRetry: boolean = false,
+    isApproved?: boolean,
   ) => {
 
     // 1. Optimistic Navigation (If not waiting for user input)
@@ -949,7 +952,8 @@ export default function Home() {
         item,
         currentParsedData,
         shouldWaitUser,
-        isRetry
+        isRetry,
+        isApproved
       });
 
       // Trigger Processor
@@ -964,12 +968,12 @@ export default function Home() {
       // Instead, I will assume the user primarily wants speed for the DEFAULT flow.
 
       // If Manual Note is ON, we do strict handling.
-      await handleManualSubmissionList(session, payload, item, currentParsedData);
+      await handleManualSubmissionList(session, payload, item, currentParsedData, isApproved);
     }
   };
 
   // Helper for Manual Note (Blocking Flow)
-  const handleManualSubmissionList = async (session: string, payload: any, item: any, currentParsedData: ExtractedData) => {
+  const handleManualSubmissionList = async (session: string, payload: any, item: any, currentParsedData: ExtractedData, isApproved?: boolean) => {
     setProcessingStatus("processing");
     try {
       // 1. Submit
@@ -998,7 +1002,7 @@ export default function Home() {
 
       // 3. Open Modal
       const approvalPayload = {
-        status: note.length > 0 ? 3 : 2,
+        status: isApproved !== undefined ? (isApproved ? 2 : 3) : (note.length > 0 ? 3 : 2),
         id: currentParsedData.extractedId,
         npsn: currentParsedData.school.npsn,
         resi: currentParsedData.resi,
@@ -1071,10 +1075,40 @@ export default function Home() {
       stempel: capturedForm["T"],
     };
 
+    // Auto-approve exception logic
+    let finalIsApproved = isApproved;
+    if (!isApproved) {
+      const allowedExceptions: Record<string, string[]> = {
+        G: ["Tidak terlihat jelas"],
+        H: ["Tidak terlihat jelas"],
+        K: ["Tidak terlihat jelas"],
+      };
+
+      let hasHardReject = false;
+
+      for (const field of sidebarOptions) {
+        const defaultVal = field.options[0];
+        const currentVal = capturedForm[field.id];
+
+        if (currentVal === defaultVal) continue;
+
+        if (allowedExceptions[field.id] && allowedExceptions[field.id].includes(currentVal)) {
+          continue;
+        }
+
+        hasHardReject = true;
+        break;
+      }
+
+      if (!hasHardReject) {
+        finalIsApproved = true;
+      }
+    }
+
     // Determine strict wait
     const shouldWaitUser = enableManualNote;
 
-    await handleSubmissionProcess(session, payload, capturedItem, capturedParsedData, shouldWaitUser);
+    await handleSubmissionProcess(session, payload, capturedItem, capturedParsedData, shouldWaitUser, false, finalIsApproved);
   }
 
   const handleRetry = async () => {
@@ -1088,7 +1122,8 @@ export default function Home() {
       retryPayloads.item,
       retryPayloads.currentParsedData!,
       false, // retry usually implies we just want to push it through
-      true
+      true,
+      retryPayloads.isApproved
     );
   };
 
